@@ -287,4 +287,46 @@ function aparecerEnemigo() {
     };
 
     pantalla.appendChild(enemigo);
+    
+}
+// --- MERCADO ---
+const mercadoSprite = document.getElementById("mercado");
+const menuMercado = document.getElementById("menu-mercado");
+
+mercadoSprite.addEventListener("click", () => {
+    menuMercado.style.display = "flex";
+});
+
+function cerrarMercado() {
+    menuMercado.style.display = "none";
+}
+
+function comprarEspada() {
+    if (tieneEspada) { alert("¡Ya tienes espada!"); return; }
+    if (oro < 10) { alert("Necesitas 10 de oro."); return; }
+    oro -= 10;
+    txtOro.innerText = oro;
+    dañoArma = 3;
+    tieneEspada = true;
+    alert("⚔️ ¡Espada comprada!");
+    cerrarMercado();
+}
+
+function comprarCorazon() {
+    if (oro < 5) { alert("Necesitas 5 de oro."); return; }
+    oro -= 5;
+    txtOro.innerText = oro;
+    maxPlayerHp++;
+    playerHp = Math.min(playerHp + 1, maxPlayerHp);
+    actualizarCorazones();
+    cerrarMercado();
+}
+
+function comprarPico() {
+    if (oro < 8) { alert("Necesitas 8 de oro."); return; }
+    oro -= 8;
+    txtOro.innerText = oro;
+    dañoPico++;
+    alert("⛏️ ¡Pico mejorado! Daño: " + dañoPico);
+    cerrarMercado();
 }
