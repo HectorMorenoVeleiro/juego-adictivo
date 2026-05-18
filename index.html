@@ -18,21 +18,23 @@
 
     <!-- La sala de la mina -->
     <div id="pantalla-juego">
-      <!-- Dentro de <div id="pantalla-juego">, justo antes del <script> -->
-      <div id="mercado" class="sprite mercado-sprite" title="Mercado"></div>
+      <div id="mundo">
+        <!-- Dentro de <div id="pantalla-juego">, justo antes del <script> -->
+        <div id="mercado" class="sprite mercado-sprite" title="Mercado"></div>
 
-      <!-- Menú del mercado (fuera de pantalla-juego) -->
-      <div id="menu-mercado" style="display: none">
-        <div id="menu-mercado-contenido">
-          <h2>🏪 Mercado</h2>
-          <button onclick="comprarEspada()">⚔️ Espada — 10 oro</button>
-          <button onclick="comprarCorazon()">❤️ Vida extra — 5 oro</button>
-          <button onclick="comprarPico()">⛏️ Pico fuerte — 8 oro</button>
-          <button onclick="cerrarMercado()">✖ Cerrar</button>
+        <!-- Menú del mercado (fuera de pantalla-juego) -->
+        <div id="menu-mercado" style="display: none">
+          <div id="menu-mercado-contenido">
+            <h2>🏪 Mercado</h2>
+            <button onclick="comprarEspada()">⚔️ Espada — 10 oro</button>
+            <button onclick="comprarCorazon()">❤️ Vida extra — 5 oro</button>
+            <button onclick="comprarPico()">⛏️ Pico fuerte — 8 oro</button>
+            <button onclick="cerrarMercado()">✖ Cerrar</button>
+          </div>
         </div>
+        <div id="jugador" class="sprite"></div>
+        <!-- Los bloques y enemigos se generan con JS -->
       </div>
-      <div id="jugador" class="sprite"></div>
-      <!-- Los bloques y enemigos se generan con JS -->
     </div>
 
     <script src="game.js"></script>

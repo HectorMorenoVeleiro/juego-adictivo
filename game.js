@@ -16,6 +16,11 @@ const MOVE_SPEED = 2;
 const MINE_RANGE = 80;
 const BLOCK_SIZE = 32;
 const BLOCK_HITBOX = 5;
+const mundo = document.getElementById("mundo");
+const WORLD_W = 1200;
+const WORLD_H = 900;
+const CAM_W = 600;
+const CAM_H = 400;
 
 // Bloques
 let blocks = [];
@@ -110,7 +115,7 @@ function generarBloques() {
 
 generarBloques();
 
-// --- MOVIMIENTO WASD ---
+// --- MOVIMIENTO WASD Y COLISIONES CORREGIDAS ---
 const keys = {};
 
 document.addEventListener("keydown", (e) => {
@@ -125,19 +130,20 @@ document.addEventListener("keyup", (e) => {
     keys[e.key.toLowerCase()] = false;
 });
 
-function colisionaConBloques(x, y, w, h) {
-    // Hitbox reducida
-    const hbX = x + 30;
-    const hbY = y + 25;
-    const hbW = w - 75;
-    const hbH = h - 60;
+function colisionaConBloques(x, y, size) {
+    // Ajustamos la hitbox para que sea un pelín más pequeña que el personaje (32px)
+    // Así el movimiento se siente fluido y no se "atasca" en las esquinas
+    const margin = 4; 
+    const hbX = x + margin;
+    const hbY = y + margin;
+    const hbSize = size - (margin * 2);
 
     return blocks.some(b =>
         hbX < b.x + BLOCK_SIZE &&
-        hbX + hbW > b.x &&
+        hbX + hbSize > b.x &&
         hbY < b.y + BLOCK_SIZE && 
-        hbY + hbH > b.y
-    )
+        hbY + hbSize > b.y
+    );
 }
 
 function update() {
@@ -149,13 +155,14 @@ function update() {
         if (keys["s"]) { dy = MOVE_SPEED; dir = "down"; }
         if (keys["a"]) { dx = -MOVE_SPEED; dir = "left"; }
         if (keys["d"]) { dx = MOVE_SPEED; dir = "right"; }
-        
 
         if (dx !== 0 || dy !== 0) {
-            let newX = Math.max(0, Math.min(600 - 64, playerX + dx));
-            let newY = Math.max(0, Math.min(400 - 64, playerY + dy));
+            // Cambiado a 32 (el tamaño real del sprite del jugador)
+            let newX = Math.max(0, Math.min(WORLD_W - 32, playerX + dx));
+            let newY = Math.max(0, Math.min(WORLD_H - 32, playerY + dy));
 
-            if (!colisionaConBloques(newX, newY, 64, 64)) {
+            // Comprobamos la colisión usando el tamaño correcto de 32x32
+            if (!colisionaConBloques(newX, newY, 32)) {
                 playerX = newX;
                 playerY = newY;
                 playerDir = dir;
@@ -167,9 +174,25 @@ function update() {
         }
     }
 
+    // Actualizar la cámara en cada frame para que el scroll sea suave
+    actualizarCamara();
+
     requestAnimationFrame(update);
 }
 update();
+
+function actualizarCamara() {
+    // Centro de la cámara sobre el jugador
+    let camX = playerX + 32 - CAM_W / 2;
+    let camY = playerY + 32 - CAM_H / 2;
+
+    // Limitar para no salirse del mundo
+    camX = Math.max(0, Math.min(WORLD_W - CAM_W, camX));
+    camY = Math.max(0, Math.min(WORLD_H - CAM_H, camY));
+
+    // Mover el mundo en dirección contraria
+    mundo.style.transform = `translate(${-camX}px, ${-camY}px)`;
+}
 
 // --- GOLPEAR BLOQUE ---
 function golpearBloque(block) {
