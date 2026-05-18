@@ -12,7 +12,12 @@
       </div>
       <div id="corazones"></div>
       <div id="tienda">
-        <button id="btn-comprar-arma" onclick="comprarArma()">DORMIR</button>
+        <button
+          id="btn-dormir"
+          onclick="if (fase === 'DIA') cambiarFase('NOCHE');"
+        >
+          DORMIR (Iniciar Noche)
+        </button>
       </div>
     </div>
 

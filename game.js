@@ -34,7 +34,7 @@ const jugador = document.getElementById("jugador");
 // Elemento pico para la animación
 const pickaxe = document.createElement("div");
 pickaxe.classList.add("pickaxe");
-pantalla.appendChild(pickaxe);
+mundo.appendChild(pickaxe);
 
 // Inicializar jugador
 jugador.style.left = playerX + "px";
@@ -62,8 +62,8 @@ function generarBloques() {
     for (let i = 0; i < cantidad; i++) {
         let x, y, intentos = 0;
         do {
-            x = 4 + Math.random() * (600 - BLOCK_SIZE - 8);
-            y = 4 + Math.random() * (400 - BLOCK_SIZE - 8);
+            x = 4 + Math.random() * (WORLD_W - BLOCK_SIZE - 8);
+            y = 4 + Math.random() * (WORLD_H - BLOCK_SIZE - 8);
             intentos++;
         } while (
             intentos < 100 &&
@@ -99,7 +99,7 @@ function generarBloques() {
             if (b) golpearBloque(b);
         };
 
-        pantalla.appendChild(el);
+        mundo.appendChild(el);
         blocks.push({
             x: pos.x,
             y: pos.y,
@@ -131,8 +131,9 @@ document.addEventListener("keyup", (e) => {
 });
 
 function colisionaConBloques(x, y, size) {
-    // Ajustamos la hitbox para que sea un pelín más pequeña que el personaje (32px)
-    // Así el movimiento se siente fluido y no se "atasca" en las esquinas
+    // Si es de noche, no hay bloques físicos estorbando
+    if (fase === "NOCHE") return false;
+
     const margin = 4; 
     const hbX = x + margin;
     const hbY = y + margin;
@@ -179,6 +180,7 @@ function update() {
 
     requestAnimationFrame(update);
 }
+
 update();
 
 function actualizarCamara() {
@@ -196,8 +198,8 @@ function actualizarCamara() {
 
 // --- GOLPEAR BLOQUE ---
 function golpearBloque(block) {
+    if (isMining) return; 
     if (fase !== "DIA") return;
-    if (isMining) return;
     if (block.hp <= 0) return;
 
     // Comprobar proximidad
@@ -225,12 +227,14 @@ function golpearBloque(block) {
         left: { x: -15, y: 5 },
         right: { x: 15, y: 0 }
     };
+
     const rotations = {
         down: 90,
         up: 270,
         left: 180,
         right: 0
     };
+
     const off = offsets[playerDir] || { x: 0, y: 0 };
     pickaxe.style.left = (playerX + off.x) + "px";
     pickaxe.style.top = (playerY + off.y) + "px";
@@ -249,8 +253,8 @@ function golpearBloque(block) {
         }
     }, 100);
 
-    // Dañar bloque
-    block.hp--;
+    // Dañar bloque usando el poder del pico actual
+    block.hp -= dañoPico;
     const pct = (block.hp / block.maxHp) * 100;
     block.hpFill.style.width = pct + "%";
 
@@ -272,26 +276,16 @@ function golpearBloque(block) {
     }
 }
 
-function comprarArma() {
-    if (oro >= 10 && !tieneEspada) {
-        oro -= 10;
-        txtOro.innerText = oro;
-        dañoArma = 3;
-        tieneEspada = true;
-        document.getElementById("btn-comprar-arma").innerText = "Espada Comprada";
-        cambiarFase("NOCHE");
-    }
-}
 
 function cambiarFase(nuevaFase) {
     fase = nuevaFase;
     txtFase.innerText = fase;
 
     if (fase === "NOCHE") {
-        blocks.forEach(b => b.element.style.display = "none");
+        // Eliminamos los bloques del mapa y limpiamos el array para que no estorben
+        blocks.forEach(b => b.element.remove());
+        blocks = [];
         aparecerEnemigo();
-    } else {
-        blocks.forEach(b => b.element.style.display = "block");
     }
 }
 
@@ -299,18 +293,24 @@ function aparecerEnemigo() {
     const enemigo = document.createElement("div");
     enemigo.classList.add("sprite", "enemigo");
 
+    // Spawnear al enemigo un poco alejado del jugador (ej. 150px a la derecha)
+    enemigo.style.left = (playerX + 150) + "px";
+    enemigo.style.top = playerY + "px";
+    enemigo.style.position = "absolute"; // Asegúrate de que tu CSS use absolute
+
     let vidaEnemigo = 5;
     enemigo.onclick = function() {
         vidaEnemigo -= dañoArma;
         if (vidaEnemigo <= 0) {
             enemigo.remove();
             alert("¡Monstruo derrotado! Vuelve el amanecer.");
+            // Al volver el día, regeneramos bloques para que el bucle continúe
             cambiarFase("DIA");
+            generarBloques(); 
         }
     };
 
-    pantalla.appendChild(enemigo);
-    
+    mundo.appendChild(enemigo);
 }
 // --- MERCADO ---
 const mercadoSprite = document.getElementById("mercado");
@@ -327,12 +327,17 @@ function cerrarMercado() {
 function comprarEspada() {
     if (tieneEspada) { alert("¡Ya tienes espada!"); return; }
     if (oro < 10) { alert("Necesitas 10 de oro."); return; }
+    
     oro -= 10;
     txtOro.innerText = oro;
     dañoArma = 3;
     tieneEspada = true;
-    alert("⚔️ ¡Espada comprada!");
+    
+    alert("⚔️ ¡Espada comprada! Los ruidos se intensifican...");
     cerrarMercado();
+    
+    // Forzamos el cambio de fase aquí para que empiece la acción
+    cambiarFase("NOCHE"); 
 }
 
 function comprarCorazon() {
