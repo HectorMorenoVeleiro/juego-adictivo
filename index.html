@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Minero Extremo: Día y Noche</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="interfaz">
+      <div id="Estado">
+        Fase: <span id="fase-actual">DÍA</span> | Oro: <span id="oro">0</span>
+      </div>
+      <div id="corazones"></div>
+      <div id="tienda">
+        <button id="btn-comprar-arma" onclick="comprarArma()">DORMIR</button>
+      </div>
+    </div>
+
+    <!-- La sala de la mina -->
+    <div id="pantalla-juego">
+      <div id="jugador" class="sprite"></div>
+      <!-- Los bloques y enemigos se generan con JS -->
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>

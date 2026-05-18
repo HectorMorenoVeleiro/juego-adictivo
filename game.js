@@ -1,0 +1,290 @@
+// Variables de estado
+let oro = 0;
+let fase = "DIA";
+let dañoPico = 1;
+let dañoArma = 1;
+let tieneEspada = false;
+let isMining = false;
+let playerHp = 5;
+let maxPlayerHp = 5;
+
+// Posición del jugador
+let playerX = 100;
+let playerY = 316;
+let playerDir = "down";
+const MOVE_SPEED = 2;
+const MINE_RANGE = 80;
+const BLOCK_SIZE = 32;
+const BLOCK_HITBOX = 5;
+
+// Bloques
+let blocks = [];
+
+// Elementos del DOM
+const txtOro = document.getElementById("oro");
+const txtFase = document.getElementById("fase-actual");
+const pantalla = document.getElementById("pantalla-juego");
+const jugador = document.getElementById("jugador");
+
+// Elemento pico para la animación
+const pickaxe = document.createElement("div");
+pickaxe.classList.add("pickaxe");
+pantalla.appendChild(pickaxe);
+
+// Inicializar jugador
+jugador.style.left = playerX + "px";
+jugador.style.top = playerY + "px";
+jugador.style.backgroundImage = "url('sprites/char/char_down.png')";
+
+// Inicializar corazones
+function actualizarCorazones() {
+    const contenedor = document.getElementById("corazones");
+    contenedor.innerHTML = "";
+    for (let i = 0; i < maxPlayerHp; i++) {
+        const span = document.createElement("span");
+        span.className = "corazon" + (i < playerHp ? "" : " vacio");
+        span.textContent = "♥";
+        contenedor.appendChild(span);
+    }
+}
+actualizarCorazones();
+
+// --- GENERAR BLOQUES ---
+function generarBloques() {
+    const posiciones = [];
+    const cantidad = (Math.random() * 2 ) + 10;
+
+    for (let i = 0; i < cantidad; i++) {
+        let x, y, intentos = 0;
+        do {
+            x = 4 + Math.random() * (600 - BLOCK_SIZE - 8);
+            y = 4 + Math.random() * (400 - BLOCK_SIZE - 8);
+            intentos++;
+        } while (
+            intentos < 100 &&
+            (posiciones.some(p =>
+                x < p.x + BLOCK_SIZE + 4 &&
+                x + BLOCK_SIZE + 4 > p.x &&
+                y < p.y + BLOCK_SIZE + 4 &&
+                y + BLOCK_SIZE + 4 > p.y
+            ) ||
+            Math.abs(x + BLOCK_SIZE / 2 - (playerX + 32)) < 80 &&
+            Math.abs(y + BLOCK_SIZE / 2 - (playerY + 32)) < 80)
+        );
+
+        posiciones.push({ x, y });
+    }
+
+    posiciones.forEach(pos => {
+        const el = document.createElement("div");
+        el.className = "block";
+        el.style.left = pos.x + "px";
+        el.style.top = pos.y + "px";
+
+        const hpBar = document.createElement("div");
+        hpBar.className = "block-hp";
+        hpBar.style.display = "none";
+        const hpFill = document.createElement("div");
+        hpFill.className = "block-hp-fill";
+        hpBar.appendChild(hpFill);
+        el.appendChild(hpBar);
+
+        el.onclick = () => {
+            const b = blocks.find(bl => bl.element === el);
+            if (b) golpearBloque(b);
+        };
+
+        pantalla.appendChild(el);
+        blocks.push({
+            x: pos.x,
+            y: pos.y,
+            hp: 3,
+            maxHp: 3,
+            hit: false,
+            element: el,
+            hpBar: hpBar,
+            hpFill: hpFill
+        });
+    });
+}
+
+generarBloques();
+
+// --- MOVIMIENTO WASD ---
+const keys = {};
+
+document.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+    if (["w", "a", "s", "d"].includes(key)) {
+        e.preventDefault();
+    }
+});
+
+document.addEventListener("keyup", (e) => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+function colisionaConBloques(x, y, w, h) {
+    // Hitbox reducida
+    const hbX = x + 30;
+    const hbY = y + 25;
+    const hbW = w - 75;
+    const hbH = h - 60;
+
+    return blocks.some(b =>
+        hbX < b.x + BLOCK_SIZE &&
+        hbX + hbW > b.x &&
+        hbY < b.y + BLOCK_SIZE && 
+        hbY + hbH > b.y
+    )
+}
+
+function update() {
+    if (!isMining) {
+        let dx = 0, dy = 0;
+        let dir = playerDir;
+
+        if (keys["w"]) { dy = -MOVE_SPEED; dir = "up"; }
+        if (keys["s"]) { dy = MOVE_SPEED; dir = "down"; }
+        if (keys["a"]) { dx = -MOVE_SPEED; dir = "left"; }
+        if (keys["d"]) { dx = MOVE_SPEED; dir = "right"; }
+        
+
+        if (dx !== 0 || dy !== 0) {
+            let newX = Math.max(0, Math.min(600 - 64, playerX + dx));
+            let newY = Math.max(0, Math.min(400 - 64, playerY + dy));
+
+            if (!colisionaConBloques(newX, newY, 64, 64)) {
+                playerX = newX;
+                playerY = newY;
+                playerDir = dir;
+
+                jugador.style.left = playerX + "px";
+                jugador.style.top = playerY + "px";
+                jugador.style.backgroundImage = "url('sprites/char/char_" + dir + ".png')";
+            }
+        }
+    }
+
+    requestAnimationFrame(update);
+}
+update();
+
+// --- GOLPEAR BLOQUE ---
+function golpearBloque(block) {
+    if (fase !== "DIA") return;
+    if (isMining) return;
+    if (block.hp <= 0) return;
+
+    // Comprobar proximidad
+    const pcx = playerX + 32;
+    const pcy = playerY + 32;
+    const bcx = block.x + BLOCK_SIZE / 2;
+    const bcy = block.y + BLOCK_SIZE / 2;
+    const dist = Math.sqrt((pcx - bcx) ** 2 + (pcy - bcy) ** 2);
+
+    if (dist > MINE_RANGE) return;
+
+    // Mostrar barra de vida al primer golpe
+    if (!block.hit) {
+        block.hit = true;
+        block.hpBar.style.display = "block";
+    }
+
+    // Animación del pico
+    isMining = true;
+    let frame = 1;
+
+    const offsets = {
+        down: { x: 2, y: 23 },
+        up: { x:0, y: -20 },
+        left: { x: -15, y: 5 },
+        right: { x: 15, y: 0 }
+    };
+    const rotations = {
+        down: 90,
+        up: 270,
+        left: 180,
+        right: 0
+    };
+    const off = offsets[playerDir] || { x: 0, y: 0 };
+    pickaxe.style.left = (playerX + off.x) + "px";
+    pickaxe.style.top = (playerY + off.y) + "px";
+    pickaxe.style.display = "block";
+    pickaxe.style.backgroundImage = "url('sprites/pickaxe/pickaxe1.png')";
+    pickaxe.style.transform = "rotate(" + rotations[playerDir] + "deg)";
+
+    const anim = setInterval(() => {
+        frame++;
+        if (frame > 4) {
+            clearInterval(anim);
+            pickaxe.style.display = "none";
+            isMining = false;
+        } else {
+            pickaxe.style.backgroundImage = "url('sprites/pickaxe/pickaxe" + frame + ".png')";
+        }
+    }, 100);
+
+    // Dañar bloque
+    block.hp--;
+    const pct = (block.hp / block.maxHp) * 100;
+    block.hpFill.style.width = pct + "%";
+
+    if (block.hp <= 1) {
+        block.hpFill.style.background = "#f33";
+    } else if (block.hp <= 2) {
+        block.hpFill.style.background = "#fc3";
+    }
+
+    if (block.hp <= 0) {
+        block.element.remove();
+        blocks = blocks.filter(b => b !== block);
+        oro += dañoPico;
+        txtOro.innerText = oro;
+
+        if (oro >= 10 && !tieneEspada) {
+            alert("¡Se hace de noche! Compra un arma rápido antes de que aparezcan los monstruos.");
+        }
+    }
+}
+
+function comprarArma() {
+    if (oro >= 10 && !tieneEspada) {
+        oro -= 10;
+        txtOro.innerText = oro;
+        dañoArma = 3;
+        tieneEspada = true;
+        document.getElementById("btn-comprar-arma").innerText = "Espada Comprada";
+        cambiarFase("NOCHE");
+    }
+}
+
+function cambiarFase(nuevaFase) {
+    fase = nuevaFase;
+    txtFase.innerText = fase;
+
+    if (fase === "NOCHE") {
+        blocks.forEach(b => b.element.style.display = "none");
+        aparecerEnemigo();
+    } else {
+        blocks.forEach(b => b.element.style.display = "block");
+    }
+}
+
+function aparecerEnemigo() {
+    const enemigo = document.createElement("div");
+    enemigo.classList.add("sprite", "enemigo");
+
+    let vidaEnemigo = 5;
+    enemigo.onclick = function() {
+        vidaEnemigo -= dañoArma;
+        if (vidaEnemigo <= 0) {
+            enemigo.remove();
+            alert("¡Monstruo derrotado! Vuelve el amanecer.");
+            cambiarFase("DIA");
+        }
+    };
+
+    pantalla.appendChild(enemigo);
+}

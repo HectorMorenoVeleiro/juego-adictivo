@@ -1,0 +1,93 @@
+body {
+    background: #222;
+    color: white;
+    font-family: sans-serif;
+    text-align: center;
+}
+
+#corazones {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 22px;
+    letter-spacing: 3px;
+}
+
+.corazon {
+    color: #f33;
+}
+
+.corazon.vacio {
+    color: #444;
+}
+
+#pantalla-juego {
+    position: relative;
+    width: 600px;
+    height: 400px;
+    background: #443322; /* Color de fondo de la mina */
+    margin: 20px auto;
+    border: 4px solid #666;
+    overflow: hidden;
+}
+
+/* Clase base para todos tus sprites */
+.sprite {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated; /* Por si es Pixel Art */
+}
+
+/* Rutas a tus imágenes reales */
+#jugador {
+    background-image: url('sprites/char/char_down.png');
+}
+
+.block {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background-image: url('sprites/block/gold/gold.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    image-rendering: pixelated;
+}
+
+.block-hp {
+    position: absolute;
+    top: -6px;
+    left: -2px;
+    width: 22px;
+    height: 4px;
+    background: #333;
+    border: 1px solid #000;
+    border-radius: 1px;
+}
+
+.block-hp-fill {
+    height: 100%;
+    width: 100%;
+    background: #0c0;
+    transition: width 0.1s;
+}
+
+.enemigo {
+    background-image: url('sprites/enemy/enemy_eye.png');
+    bottom: 20px;
+    right: 20px;
+}
+
+.pickaxe {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    display: none;
+    z-index: 0;
+    pointer-events: none;
+}
