@@ -22,13 +22,12 @@ body {
 
 #pantalla-juego {
     position: relative;
-    width: 600px;
-    height: 400px;
+    width: 500px;
+    height: 200px;
     background: #443322;
     margin: 20px auto;
     border: 4px solid #666;
     overflow: hidden;
-    transform: scale(3.5);
     transform-origin: top center;
 }
 
@@ -38,13 +37,25 @@ body {
     height: 900px;
     top: 0;
     left: 0;
+    
+    /* 1. Ruta a la imagen de tu suelo/piso */
+    background-image: url('sprites/block/stone/stone.png'); /* <-- Cambia 'dirt.png' por el nombre real de tu archivo */
+    
+    /* 2. Hace que el sprite se repita en mosaico por todo el mapa de 1200x900 */
+    background-repeat: repeat; 
+    
+    /* 3. Mantiene el tamaño original del sprite (ej. 16x16 o 32x32) para que se repita bien */
+    background-size: 32px; 
+    
+    /* 4. Evita que el pixel art del fondo se vea borroso al escalarse con la cámara */
+    image-rendering: pixelated; 
 }
 
 /* Clase base para todos tus sprites */
 .sprite {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
     background-size: contain;
     background-repeat: no-repeat;
     image-rendering: pixelated; /* Por si es Pixel Art */
@@ -54,11 +65,26 @@ body {
 #jugador {
     background-image: url('sprites/char/char_down.png');
 }
+/* Clase para las sombras genéricas */
+.sombra {
+    position: absolute;
+    background-image: url('sprites/shadow/shadow.png'); /* Carga tu óvalo transparente */
+    background-size: containd;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    z-index: 1; /* Por debajo del sprite real */
+    pointer-events: none; /* Para que no bloquee los clics del ratón */
+}
+
+/* Aseguramos que los personajes y el mercado se pinten por encima de las sombras */
+.sprite, .block, .enemigo {
+    z-index: 2; 
+}
 
 .pickaxe {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
     background-size: contain;
     background-repeat: no-repeat;
     image-rendering: pixelated;
@@ -105,8 +131,8 @@ body {
 
 /* Sprite del mercado — posición fija en la esquina */
 .mercado-sprite {
-    width: 64px;
-    height: 64px;
+    width: 128px;
+    height: 128px;
     left: 10px;
     top: 10px;
     cursor: pointer;
