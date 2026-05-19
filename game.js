@@ -4,6 +4,7 @@ let fase = "DIA";
 let dañoPico = 1;
 let dañoArma = 1;
 let tieneEspada = false;
+let hasPickaxe = false;
 let isMining = false;
 let playerHp = 5;
 let maxPlayerHp = 5;
@@ -214,6 +215,7 @@ function actualizarCamara() {
 function golpearBloque(block) {
     if (isMining) return; 
     if (fase !== "DIA") return;
+    if (!hasPickaxe) { alert("Necesitas un pico. ¡Compra uno en el mercado!"); return; }
     if (block.hp <= 0) return;
 
     // Comprobar proximidad
@@ -326,49 +328,54 @@ function aparecerEnemigo() {
 
     mundo.appendChild(enemigo);
 }
-// --- MERCADO ---
+// --- MERCADO (menú sprite) ---
 const mercadoSprite = document.getElementById("mercado");
-const menuMercado = document.getElementById("menu-mercado");
+const menuSprite = document.getElementById("menu-sprite");
 
 mercadoSprite.addEventListener("click", () => {
-    menuMercado.style.display = "flex";
+    menuSprite.style.left = "140px";
+    menuSprite.style.top = "10px";
+    menuSprite.style.display = "block";
 });
 
-function cerrarMercado() {
-    menuMercado.style.display = "none";
-}
+menuSprite.addEventListener("click", (e) => {
+    const y = e.offsetY;
+    if (y >= 12 && y <= 30) {
+        dañoArma++;
+        alert("⚔️ ¡Daño de espada aumentado a " + dañoArma + "!");
+        menuSprite.style.display = "none";
+    } else if (y >= 34 && y <= 52) {
+        if (oro < 5) { alert("Necesitas 5 de oro."); return; }
+        oro -= 5;
+        txtOro.innerText = oro;
+        maxPlayerHp++;
+        playerHp = Math.min(playerHp + 1, maxPlayerHp);
+        actualizarCorazones();
+        menuSprite.style.display = "none";
+    } else if (y >= 56 && y <= 74) {
+        if (hasPickaxe) { alert("¡Ya tienes un pico!"); return; }
+        hasPickaxe = true;
+        alert("⛏️ ¡Pico recogido! Ahora puedes picar bloques.");
+        menuSprite.style.display = "none";
+    } else if (y >= 78 && y <= 96) {
+        if (tieneEspada) { alert("¡Ya tienes espada!"); return; }
+        if (oro < 10) { alert("Necesitas 10 de oro."); return; }
+        oro -= 10;
+        txtOro.innerText = oro;
+        dañoArma = 3;
+        tieneEspada = true;
+        alert("⚔️ ¡Espada comprada! Los ruidos se intensifican...");
+        menuSprite.style.display = "none";
+        cambiarFase("NOCHE");
+    } else if (y >= 100 && y <= 110) {
+        menuSprite.style.display = "none";
+    }
+});
 
-function comprarEspada() {
-    if (tieneEspada) { alert("¡Ya tienes espada!"); return; }
-    if (oro < 10) { alert("Necesitas 10 de oro."); return; }
-    
-    oro -= 10;
-    txtOro.innerText = oro;
-    dañoArma = 3;
-    tieneEspada = true;
-    
-    alert("⚔️ ¡Espada comprada! Los ruidos se intensifican...");
-    cerrarMercado();
-    
-    // Forzamos el cambio de fase aquí para que empiece la acción
-    cambiarFase("NOCHE"); 
-}
-
-function comprarCorazon() {
-    if (oro < 5) { alert("Necesitas 5 de oro."); return; }
-    oro -= 5;
-    txtOro.innerText = oro;
-    maxPlayerHp++;
-    playerHp = Math.min(playerHp + 1, maxPlayerHp);
-    actualizarCorazones();
-    cerrarMercado();
-}
-
-function comprarPico() {
-    if (oro < 8) { alert("Necesitas 8 de oro."); return; }
-    oro -= 8;
-    txtOro.innerText = oro;
-    dañoPico++;
-    alert("⛏️ ¡Pico mejorado! Daño: " + dañoPico);
-    cerrarMercado();
-}
+document.addEventListener("click", (e) => {
+    if (menuSprite.style.display === "block" &&
+        e.target !== menuSprite &&
+        e.target !== mercadoSprite) {
+        menuSprite.style.display = "none";
+    }
+});

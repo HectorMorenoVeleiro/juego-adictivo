@@ -150,51 +150,14 @@ body {
     filter: brightness(1.3);
 }
 
-/* Overlay del menú */
-#menu-mercado {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#menu-mercado-contenido {
-    background: #2a1a0a;
-    border: 3px solid #FFD700;
-    border-radius: 8px;
-    padding: 24px 32px;
-    min-width: 220px;
-    text-align: center;
-    box-shadow: 0 0 30px #FFD70066;
-}
-
-#menu-mercado-contenido h2 {
-    margin-top: 0;
-    color: #FFD700;
-    font-size: 1.4em;
-    letter-spacing: 2px;
-}
-
-#menu-mercado-contenido button {
-    display: block;
-    width: 100%;
-    margin: 8px 0;
-    padding: 10px;
-    background: #5a3010;
-    color: #fff;
-    border: 1px solid #FFD700;
-    border-radius: 4px;
+.menu-sprite {
+    background-image: url('sprites/menu/menu.png');
+    width: 128px;
+    height: 128px;
+    z-index: 50;
     cursor: pointer;
-    font-size: 1em;
-    transition: background 0.15s;
-}
-
-#menu-mercado-contenido button:hover {
-    background: #8B4513;
+    image-rendering: pixelated;
+    border-radius: 4px;
 }
 
 #pantalla-juego {
