@@ -55,10 +55,9 @@ function actualizarCorazones() {
     const contenedor = document.getElementById("corazones");
     contenedor.innerHTML = "";
     for (let i = 0; i < maxPlayerHp; i++) {
-        const span = document.createElement("span");
-        span.className = "corazon" + (i < playerHp ? "" : " vacio");
-        span.textContent = "♥";
-        contenedor.appendChild(span);
+        const divCorazon = document.createElement("div");
+        divCorazon.className = "sprite-corazon" + (i < playerHp ? " lleno" : " vacio");
+        contenedor.appendChild(divCorazon);
     }
 }
 actualizarCorazones();

@@ -13,16 +13,27 @@ body {
 #corazones {
     display: inline-block;
     margin-left: 10px;
-    font-size: 22px;
-    letter-spacing: 3px;
+    vertical-align: middle;
 }
 
-.corazon {
-    color: #f33;
+.sprite-corazon {
+    display: inline-block;
+    width: 16px;              /* Ajusta según el tamaño de tu pixel art */
+    height: 16px;             /* Ajusta según el tamaño de tu pixel art */
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated; /* Mantiene los píxeles nítidos */
+    margin-right: 2px;        /* Separación entre cada corazón */
 }
 
-.corazon.vacio {
-    color: #444;
+/* Tu sprite de corazón lleno (ojo a la letra de 'fullherat') */
+.sprite-corazon.lleno {
+    background-image: url('sprites/heart/fullheart.png');
+}
+
+/* Tu sprite de corazón vacío */
+.sprite-corazon.vacio {
+    background-image: url('sprites/heart/emptyheart.png');
 }
 
 #pantalla-juego {
