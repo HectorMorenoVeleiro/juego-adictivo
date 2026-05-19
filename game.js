@@ -140,22 +140,26 @@ document.addEventListener("keyup", (e) => {
 });
 
 function colisionaConBloques(x, y, size) {
-    // Si es de noche, no hay bloques físicos estorbando
     if (fase === "NOCHE") return false;
 
-    const margin = 4; 
+    const margin = 4;
     const hbX = x + margin;
     const hbY = y + margin;
     const hbSize = size - (margin * 2);
 
+    // Offset para ajustar la hitbox al sprite
+    const OFFSET_X = -10;   // <-- mueve la hitbox horizontalmente
+    const OFFSET_Y = -10;   // <-- mueve la hitbox verticalmente
+    const HB_W = 20.5;      // <-- ancho real de la hitbox (en vez de BLOCK_SIZE completo)
+    const HB_H = 30;      // <-- alto real de la hitbox
+
     return blocks.some(b =>
-        hbX < b.x + BLOCK_SIZE &&
-        hbX + hbSize > b.x &&
-        hbY < b.y + BLOCK_SIZE && 
-        hbY + hbSize > b.y
+        hbX < b.x + OFFSET_X + HB_W &&
+        hbX + hbSize > b.x + OFFSET_X &&
+        hbY < b.y + OFFSET_Y + HB_H &&
+        hbY + hbSize > b.y + OFFSET_Y
     );
 }
-
 function update() {
     if (!isMining) {
         let dx = 0, dy = 0;
