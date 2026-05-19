@@ -45,9 +45,9 @@ jugador.style.backgroundImage = "url('sprites/char/char_down.png')";
 // --- NUEVO: Inicializar sombra del jugador ---
 const sombraJugador = document.createElement("div");
 sombraJugador.classList.add("sombra");
-// Ajustamos el tamaño de la sombra del jugador (ej: un óvalo de 32x12 píxeles)
-sombraJugador.style.width = "32px";
-sombraJugador.style.height = "12px";
+sombraJugador.style.width = "220px";
+sombraJugador.style.height = "80px";
+sombraJugador.style.opacity = "0.7";
 mundo.appendChild(sombraJugador);
 
 // Inicializar corazones
@@ -181,11 +181,8 @@ function update() {
                 jugador.style.top = playerY + "px";
                 jugador.style.backgroundImage = "url('sprites/char/char_" + dir + ".png')";
 
-                // --- NUEVO: Mover la sombra a los pies del jugador ---
-                // Tu jugador mide 64x64, sumamos 16 a la X para centrar una sombra de 32px.
-                // Sumamos 54 a la Y para colocarla justo en la base del sprite.
-                sombraJugador.style.left = (playerX + 16) + "px";
-                sombraJugador.style.top = (playerY + 54) + "px";
+                sombraJugador.style.left = (playerX - 7.9) + "px";
+                sombraJugador.style.top = (playerY - 0) + "px";
             }
         }
     }

@@ -68,12 +68,12 @@ body {
 /* Clase para las sombras genéricas */
 .sombra {
     position: absolute;
-    background-image: url('sprites/shadow/shadow.png'); /* Carga tu óvalo transparente */
-    background-size: containd;
+    background-image: url('sprites/shadow/shadow.png');
+    background-size: contain;
     background-repeat: no-repeat;
     image-rendering: pixelated;
-    z-index: 1; /* Por debajo del sprite real */
-    pointer-events: none; /* Para que no bloquee los clics del ratón */
+    z-index: 1;
+    pointer-events: none;
 }
 
 /* Aseguramos que los personajes y el mercado se pinten por encima de las sombras */
