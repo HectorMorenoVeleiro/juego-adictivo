@@ -1,381 +1,580 @@
-// Variables de estado
-let oro = 0;
-let fase = "DIA";
-let dañoPico = 1;
-let dañoArma = 1;
-let tieneEspada = false;
-let hasPickaxe = false;
-let isMining = false;
-let playerHp = 5;
-let maxPlayerHp = 5;
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const MOVE_SPEED     = 2;
+const MINE_RANGE     = 80;
+const BLOCK_SIZE     = 32;
+const BLOCK_HITBOX   = 5;
+const WORLD_W        = 1200;
+const WORLD_H        = 900;
+const CAM_W          = 500;
+const CAM_H          = 200;
 
-// Posición del jugador
-let playerX = 100;
-let playerY = 316;
-let playerDir = "down";
-const MOVE_SPEED = 2;
-const MINE_RANGE = 80;
-const BLOCK_SIZE = 32;
-const BLOCK_HITBOX = 5;
-const mundo = document.getElementById("mundo");
-const WORLD_W = 1200;
-const WORLD_H = 900;
-const CAM_W = 500;
-const CAM_H = 200;
+const MERCADO_X        = 10;
+const MERCADO_Y        = 10;
+const MERCADO_W        = 64;
+const MERCADO_H        = 64;
+const MERCADO_OFFSET_X = 0;
+const MERCADO_OFFSET_Y = 0;
+const MERCADO_OFFSET_W = 0;
+const MERCADO_OFFSET_H = 0;
 
-// Bloques
-let blocks = [];
+const PLAYER_START_X  = 100;
+const PLAYER_START_Y  = 316;
+const PLAYER_SIZE     = 32;
+const PLAYER_VISUAL_H = 64;
+const PLAYER_HP       = 5;
 
-// Elementos del DOM
-const txtOro = document.getElementById("oro");
-const txtFase = document.getElementById("fase-actual");
-const pantalla = document.getElementById("pantalla-juego");
-const jugador = document.getElementById("jugador");
 
-// Elemento pico para la animación
-const pickaxe = document.createElement("div");
-pickaxe.classList.add("pickaxe");
-mundo.appendChild(pickaxe);
-
-// Inicializar jugador
-jugador.style.left = playerX + "px";
-jugador.style.top = playerY + "px";
-jugador.style.backgroundImage = "url('sprites/char/char_down.png')";
-
-// --- NUEVO: Inicializar sombra del jugador ---
-const sombraJugador = document.createElement("div");
-sombraJugador.classList.add("sombra");
-sombraJugador.style.width = "220px";
-sombraJugador.style.height = "80px";
-sombraJugador.style.opacity = "0.7";
-mundo.appendChild(sombraJugador);
-
-// Inicializar corazones
-function actualizarCorazones() {
-    const contenedor = document.getElementById("corazones");
-    contenedor.innerHTML = "";
-    for (let i = 0; i < maxPlayerHp; i++) {
-        const divCorazon = document.createElement("div");
-        divCorazon.className = "sprite-corazon" + (i < playerHp ? " lleno" : " vacio");
-        contenedor.appendChild(divCorazon);
-    }
-}
-actualizarCorazones();
-
-// --- GENERAR BLOQUES ---
-function generarBloques() {
-    const posiciones = [];
-    const cantidad = (Math.random() * 2 ) + 10;
-
-    for (let i = 0; i < cantidad; i++) {
-        let x, y, intentos = 0;
-        do {
-            x = 4 + Math.random() * (WORLD_W - BLOCK_SIZE - 8);
-            y = 4 + Math.random() * (WORLD_H - BLOCK_SIZE - 8);
-            intentos++;
-        } while (
-            intentos < 100 &&
-            (posiciones.some(p =>
-                x < p.x + BLOCK_SIZE + 4 &&
-                x + BLOCK_SIZE + 4 > p.x &&
-                y < p.y + BLOCK_SIZE + 4 &&
-                y + BLOCK_SIZE + 4 > p.y
-            ) ||
-            Math.abs(x + BLOCK_SIZE / 2 - (playerX + 32)) < 80 &&
-            Math.abs(y + BLOCK_SIZE / 2 - (playerY + 32)) < 80)
-        );
-
-        posiciones.push({ x, y });
-    }
-
-    posiciones.forEach(pos => {
-        const el = document.createElement("div");
-        el.className = "block";
-        el.style.left = pos.x + "px";
-        el.style.top = pos.y + "px";
-
-        const hpBar = document.createElement("div");
-        hpBar.className = "block-hp";
-        hpBar.style.display = "none";
-        const hpFill = document.createElement("div");
-        hpFill.className = "block-hp-fill";
-        hpBar.appendChild(hpFill);
-        el.appendChild(hpBar);
-
-        el.onclick = () => {
-            const b = blocks.find(bl => bl.element === el);
-            if (b) golpearBloque(b);
-        };
-
-        mundo.appendChild(el);
-        blocks.push({
-            x: pos.x,
-            y: pos.y,
-            hp: 3,
-            maxHp: 3,
-            hit: false,
-            element: el,
-            hpBar: hpBar,
-            hpFill: hpFill
+// ============================================================
+//  INPUT
+// ============================================================
+class Input {
+    constructor() {
+        this._keys = {};
+        document.addEventListener("keydown", (e) => {
+            const key = e.key.toLowerCase();
+            this._keys[key] = true;
+            if (["w", "a", "s", "d"].includes(key)) e.preventDefault();
         });
-    });
-}
-
-generarBloques();
-
-// --- MOVIMIENTO WASD Y COLISIONES CORREGIDAS ---
-const keys = {};
-
-document.addEventListener("keydown", (e) => {
-    const key = e.key.toLowerCase();
-    keys[key] = true;
-    if (["w", "a", "s", "d"].includes(key)) {
-        e.preventDefault();
+        document.addEventListener("keyup", (e) => {
+            this._keys[e.key.toLowerCase()] = false;
+        });
     }
-});
 
-document.addEventListener("keyup", (e) => {
-    keys[e.key.toLowerCase()] = false;
-});
-
-function colisionaConBloques(x, y, size) {
-    if (fase === "NOCHE") return false;
-
-    const margin = 4;
-    const hbX = x + margin;
-    const hbY = y + margin;
-    const hbSize = size - (margin * 2);
-
-    // Offset para ajustar la hitbox al sprite
-    const OFFSET_X = -10;   // <-- mueve la hitbox horizontalmente
-    const OFFSET_Y = -10;   // <-- mueve la hitbox verticalmente
-    const HB_W = 20.5;      // <-- ancho real de la hitbox (en vez de BLOCK_SIZE completo)
-    const HB_H = 30;      // <-- alto real de la hitbox
-
-    return blocks.some(b =>
-        hbX < b.x + OFFSET_X + HB_W &&
-        hbX + hbSize > b.x + OFFSET_X &&
-        hbY < b.y + OFFSET_Y + HB_H &&
-        hbY + hbSize > b.y + OFFSET_Y
-    );
+    isDown(key) {
+        return !!this._keys[key.toLowerCase()];
+    }
 }
-function update() {
-    if (!isMining) {
-        let dx = 0, dy = 0;
-        let dir = playerDir;
 
-        if (keys["w"]) { dy = -MOVE_SPEED; dir = "up"; }
-        if (keys["s"]) { dy = MOVE_SPEED; dir = "down"; }
-        if (keys["a"]) { dx = -MOVE_SPEED; dir = "left"; }
-        if (keys["d"]) { dx = MOVE_SPEED; dir = "right"; }
 
-        if (dx !== 0 || dy !== 0) {
-            // Cambiado a 32 (el tamaño real del sprite del jugador)
-            let newX = Math.max(0, Math.min(WORLD_W - 32, playerX + dx));
-            let newY = Math.max(0, Math.min(WORLD_H - 32, playerY + dy));
+// ============================================================
+//  CAMERA
+// ============================================================
+class Camera {
+    constructor(worldEl) {
+        this.worldEl = worldEl;
+    }
 
-            // Comprobamos la colisión usando el tamaño correcto de 32x32
-            if (!colisionaConBloques(newX, newY, 32)) {
-                playerX = newX;
-                playerY = newY;
-                playerDir = dir;
+    follow(px, py, targetSize) {
+        let camX = px + targetSize / 2 - CAM_W / 2;
+        let camY = py + targetSize / 2 - CAM_H / 2;
+        camX = Math.max(0, Math.min(WORLD_W - CAM_W, camX));
+        camY = Math.max(0, Math.min(WORLD_H - CAM_H, camY));
+        this.worldEl.style.transform = `translate(${-camX}px, ${-camY}px)`;
+    }
+}
 
-                jugador.style.left = playerX + "px";
-                jugador.style.top = playerY + "px";
-                jugador.style.backgroundImage = "url('sprites/char/char_" + dir + ".png')";
 
-                sombraJugador.style.left = (playerX - 7.9) + "px";
-                sombraJugador.style.top = (playerY - 0) + "px";
+// ============================================================
+//  HUD
+// ============================================================
+class HUD {
+    constructor() {
+        this.oroEl       = document.getElementById("oro");
+        this.faseEl      = document.getElementById("fase-actual");
+        this.corazonesEl = document.getElementById("corazones");
+    }
+
+    actualizarOro(cantidad) {
+        this.oroEl.innerText = cantidad;
+    }
+
+    actualizarFase(fase) {
+        this.faseEl.innerText = fase;
+    }
+
+    actualizarCorazones(vidaActual, vidaMax) {
+        this.corazonesEl.innerHTML = "";
+        for (let i = 0; i < vidaMax; i++) {
+            const div = document.createElement("div");
+            div.className = "sprite-corazon" + (i < vidaActual ? " lleno" : " vacio");
+            this.corazonesEl.appendChild(div);
+        }
+    }
+}
+
+
+// ============================================================
+//  PLAYER
+// ============================================================
+class Player {
+    constructor(worldEl) {
+        this.x        = PLAYER_START_X;
+        this.y        = PLAYER_START_Y;
+        this.dir      = "down";
+        this.hp       = PLAYER_HP;
+        this.maxHp    = PLAYER_HP;
+        this.isMining = false;
+        this.size     = PLAYER_SIZE;
+
+        this.el      = document.getElementById("jugador");
+        this.sombra  = this._crearSombra(worldEl);
+        this.pickaxe = this._crearPico(worldEl);
+        this._render();
+    }
+
+    get bottom()  { return this.el.offsetTop + this.el.offsetHeight; }
+    get centerX() { return this.x + this.size / 2; }
+    get centerY() { return this.y + this.size / 2; }
+
+    _crearSombra(worldEl) {
+        const s = document.createElement("div");
+        s.classList.add("sombra");
+        s.style.width   = "220px";
+        s.style.height  = "80px";
+        s.style.opacity = "0.7";
+        worldEl.appendChild(s);
+        return s;
+    }
+
+    _crearPico(worldEl) {
+        const p = document.createElement("div");
+        p.classList.add("pickaxe");
+        worldEl.appendChild(p);
+        return p;
+    }
+
+    _render() {
+        this.el.style.left            = this.x + "px";
+        this.el.style.top             = this.y + "px";
+        this.el.style.backgroundImage = `url('sprites/char/char_${this.dir}.png')`;
+        this.sombra.style.left        = (this.x - 7.9) + "px";
+        this.sombra.style.top         = this.y + "px";
+    }
+
+    moveTo(newX, newY) {
+        this.x = newX;
+        this.y = newY;
+        this._render();
+    }
+
+    setDir(dir) {
+        this.dir = dir;
+        this.el.style.backgroundImage = `url('sprites/char/char_${dir}.png')`;
+    }
+
+    getMoveX(dx) { return Math.max(0, Math.min(WORLD_W - this.size, this.x + dx)); }
+    getMoveY(dy) { return Math.max(0, Math.min(WORLD_H - this.size, this.y + dy)); }
+
+    animarMinería(dir, onDone) {
+        this.dir      = dir;
+        this.isMining = true;
+        let frame     = 1;
+
+        const offsets   = { down: { x: 2, y: 23 }, up: { x: 0, y: -20 }, left: { x: -15, y: 5 }, right: { x: 15, y: 0 } };
+        const rotations = { down: 90, up: 270, left: 180, right: 0 };
+        const off       = offsets[dir] || { x: 0, y: 0 };
+
+        this.pickaxe.style.left            = (this.x + off.x) + "px";
+        this.pickaxe.style.top             = (this.y + off.y) + "px";
+        this.pickaxe.style.display         = "block";
+        this.pickaxe.style.backgroundImage = "url('sprites/pickaxe/pickaxe1.png')";
+        this.pickaxe.style.transform       = `rotate(${rotations[dir]}deg)`;
+
+        const anim = setInterval(() => {
+            frame++;
+            if (frame > 4) {
+                clearInterval(anim);
+                this.pickaxe.style.display = "none";
+                this.isMining = false;
+                if (onDone) onDone();
+            } else {
+                this.pickaxe.style.backgroundImage = `url('sprites/pickaxe/pickaxe${frame}.png')`;
+            }
+        }, 100);
+    }
+
+    curar(cantidad)      { this.hp = Math.min(this.maxHp, this.hp + cantidad); }
+    aumentarVidaMax()    { this.maxHp++; this.curar(1); }
+}
+
+
+// ============================================================
+//  BLOCK
+// ============================================================
+class Block {
+    constructor(x, y, mundo) {
+        this.x     = x;
+        this.y     = y;
+        this.hp    = 3;
+        this.maxHp = 3;
+        this.hit   = false;
+
+        this.el           = document.createElement("div");
+        this.el.className = "block";
+        this.el.style.left = x + "px";
+        this.el.style.top  = y + "px";
+
+        this.hpBar           = document.createElement("div");
+        this.hpBar.className = "block-hp";
+        this.hpBar.style.display = "none";
+
+        this.hpFill           = document.createElement("div");
+        this.hpFill.className = "block-hp-fill";
+        this.hpBar.appendChild(this.hpFill);
+        this.el.appendChild(this.hpBar);
+
+        mundo.appendChild(this.el);
+    }
+
+    get bottom()  { return this.el.offsetTop + this.el.offsetHeight; }
+    get centerX() { return this.x + BLOCK_SIZE / 2; }
+    get centerY() { return this.y + BLOCK_SIZE / 2; }
+
+    eliminar() { this.el.remove(); }
+}
+
+class BlockManager {
+    constructor(mundo) {
+        this.blocks = [];
+        this.mundo  = mundo;
+    }
+
+    generar(playerX, playerY) {
+        const posiciones = [];
+        const cantidad   = (Math.random() * 2) + 10;
+
+        for (let i = 0; i < cantidad; i++) {
+            let x, y, intentos = 0;
+            do {
+                x = 4 + Math.random() * (WORLD_W - BLOCK_SIZE - 8);
+                y = 4 + Math.random() * (WORLD_H - BLOCK_SIZE - 8);
+                intentos++;
+            } while (
+                intentos < 100 &&
+                (posiciones.some(p =>
+                    x < p.x + BLOCK_SIZE + 4 &&
+                    x + BLOCK_SIZE + 4 > p.x &&
+                    y < p.y + BLOCK_SIZE + 4 &&
+                    y + BLOCK_SIZE + 4 > p.y
+                ) ||
+                Math.abs(x + BLOCK_SIZE / 2 - (playerX + 32)) < 80 &&
+                Math.abs(y + BLOCK_SIZE / 2 - (playerY + 32)) < 80)
+            );
+            posiciones.push({ x, y });
+        }
+
+        posiciones.forEach(pos => {
+            const block = new Block(pos.x, pos.y, this.mundo);
+            block.el.onclick = () => {
+                if (this.onBlockClick) this.onBlockClick(block);
+            };
+            this.blocks.push(block);
+        });
+    }
+
+    getBlockByEl(el) { return this.blocks.find(b => b.el === el); }
+
+    colisiona(x, y, size) {
+        const margin  = 4;
+        const hbX     = x + margin;
+        const hbY     = y + margin;
+        const hbSize  = size - (margin * 2);
+        const OFFSET_X = -10, OFFSET_Y = -10, HB_W = 20.5, HB_H = 30;
+
+        return this.blocks.some(b =>
+            hbX          < b.x + OFFSET_X + HB_W &&
+            hbX + hbSize > b.x + OFFSET_X         &&
+            hbY          < b.y + OFFSET_Y + HB_H  &&
+            hbY + hbSize > b.y + OFFSET_Y
+        );
+    }
+
+    golpear(block, playerCenterX, playerCenterY, daño, onMined) {
+        const dist = Math.sqrt(
+            (playerCenterX - block.centerX) ** 2 +
+            (playerCenterY - block.centerY) ** 2
+        );
+        if (dist > MINE_RANGE) return false;
+
+        if (!block.hit) {
+            block.hit = true;
+            block.hpBar.style.display = "block";
+        }
+
+        block.hp -= daño;
+        const pct = (block.hp / block.maxHp) * 100;
+        block.hpFill.style.width = pct + "%";
+
+        if      (block.hp <= 1) block.hpFill.style.background = "#f33";
+        else if (block.hp <= 2) block.hpFill.style.background = "#fc3";
+
+        if (block.hp <= 0) {
+            block.eliminar();
+            this.blocks = this.blocks.filter(b => b !== block);
+            if (onMined) onMined(daño);
+        }
+        return true;
+    }
+
+    eliminarTodos() {
+        this.blocks.forEach(b => b.eliminar());
+        this.blocks = [];
+    }
+}
+
+
+// ============================================================
+//  ENEMY
+// ============================================================
+class Enemy {
+    constructor(x, y, mundo) {
+        this.el = document.createElement("div");
+        this.el.classList.add("sprite", "enemigo");
+        this.el.style.left     = x + "px";
+        this.el.style.top      = y + "px";
+        this.el.style.position = "absolute";
+        mundo.appendChild(this.el);
+        this.hp = 5;
+    }
+
+    get bottom() { return this.el.offsetTop + this.el.offsetHeight; }
+
+    recibirDaño(cantidad) {
+        this.hp -= cantidad;
+        if (this.hp <= 0) { this.el.remove(); return true; }
+        return false;
+    }
+}
+
+class EnemyManager {
+    constructor(mundo) {
+        this.enemies = [];
+        this.mundo   = mundo;
+    }
+
+    aparecer(x, y, getDaño, onDerrotado) {
+        const enemy = new Enemy(x, y, this.mundo);
+        enemy.el.onclick = () => {
+            if (enemy.recibirDaño(getDaño())) {
+                this.enemies = this.enemies.filter(e => e !== enemy);
+                if (onDerrotado) onDerrotado();
+            }
+        };
+        this.enemies.push(enemy);
+        return enemy;
+    }
+}
+
+
+// ============================================================
+//  MARKET
+// ============================================================
+class Market {
+    constructor(acciones) {
+        this.el       = document.getElementById("mercado");
+        this.menuEl   = document.getElementById("menu-sprite");
+        this.acciones = acciones;
+        this._init();
+    }
+
+    get bottom() { return this.el.offsetTop + this.el.offsetHeight; }
+
+    colisiona(x, y, size) {
+        const margin = 4;
+        const hbX    = x + margin;
+        const hbY    = y + margin;
+        const hbSize = size - (margin * 2);
+        const mX     = MERCADO_X + MERCADO_OFFSET_X;
+        const mY     = MERCADO_Y + MERCADO_OFFSET_Y;
+        const mW     = MERCADO_W + MERCADO_OFFSET_W;
+        const mH     = MERCADO_H + MERCADO_OFFSET_H;
+
+        return hbX          < mX + mW &&
+               hbX + hbSize > mX      &&
+               hbY          < mY + mH &&
+               hbY + hbSize > mY;
+    }
+
+    _init() {
+        this.el.addEventListener("click", () => {
+            this.menuEl.style.left    = "140px";
+            this.menuEl.style.top     = "10px";
+            this.menuEl.style.display = "block";
+        });
+
+        this.menuEl.addEventListener("click", (e) => {
+            const y = e.offsetY;
+            if      (y >= 12  && y <= 30)  this.acciones.mejorarArma();
+            else if (y >= 34  && y <= 52)  this.acciones.comprarCorazon();
+            else if (y >= 56  && y <= 74)  this.acciones.comprarPico();
+            else if (y >= 78  && y <= 96)  this.acciones.comprarEspada();
+            else if (y >= 100 && y <= 110) this.acciones.cerrar();
+        });
+
+        document.addEventListener("click", (e) => {
+            if (
+                this.menuEl.style.display === "block" &&
+                e.target !== this.menuEl &&
+                e.target !== this.el
+            ) {
+                this.menuEl.style.display = "none";
+            }
+        });
+    }
+}
+
+
+// ============================================================
+//  GAME
+// ============================================================
+class Game {
+    constructor() {
+        this.mundo        = document.getElementById("mundo");
+        this.input        = new Input();
+        this.camera       = new Camera(this.mundo);
+        this.player       = new Player(this.mundo);
+        this.blockManager = new BlockManager(this.mundo);
+        this.enemyManager = new EnemyManager(this.mundo);
+        this.hud          = new HUD();
+
+        this.phase        = "DIA";
+        this.gold         = 0;
+        this.weaponDamage = 1;
+        this.hasSword     = false;
+        this.hasPickaxe   = false;
+
+        this.market = new Market({
+            mejorarArma: () => {
+                this.weaponDamage++;
+                alert(`⚔️ ¡Daño de espada aumentado a ${this.weaponDamage}!`);
+                this.market.menuEl.style.display = "none";
+            },
+            comprarCorazon: () => {
+                if (this.gold < 5) { alert("Necesitas 5 de oro."); return; }
+                this.gold -= 5;
+                this.hud.actualizarOro(this.gold);
+                this.player.aumentarVidaMax();
+                this.hud.actualizarCorazones(this.player.hp, this.player.maxHp);
+                this.market.menuEl.style.display = "none";
+            },
+            comprarPico: () => {
+                if (this.hasPickaxe) { alert("¡Ya tienes un pico!"); return; }
+                this.hasPickaxe = true;
+                alert("⛏️ ¡Pico recogido! Ahora puedes picar bloques.");
+                this.market.menuEl.style.display = "none";
+            },
+            comprarEspada: () => {
+                if (this.hasSword) { alert("¡Ya tienes espada!"); return; }
+                if (this.gold < 10) { alert("Necesitas 10 de oro."); return; }
+                this.gold -= 10;
+                this.hud.actualizarOro(this.gold);
+                this.weaponDamage = 3;
+                this.hasSword     = true;
+                alert("⚔️ ¡Espada comprada! Los ruidos se intensifican...");
+                this.market.menuEl.style.display = "none";
+                this.cambiarFase("NOCHE");
+            },
+            cerrar: () => {
+                this.market.menuEl.style.display = "none";
+            }
+        });
+
+        this.blockManager.onBlockClick = (block) => this._onBlockClick(block);
+
+        document.getElementById("btn-dormir").addEventListener("click", () => {
+            if (this.phase === "DIA") this.cambiarFase("NOCHE");
+        });
+
+        this._init();
+    }
+
+    _init() {
+        this.blockManager.generar(this.player.x, this.player.y);
+        this.hud.actualizarCorazones(this.player.hp, this.player.maxHp);
+        this.hud.actualizarFase(this.phase);
+        this._bucle();
+    }
+
+    _bucle() {
+        this._actualizar();
+        requestAnimationFrame(() => this._bucle());
+    }
+
+    _actualizar() {
+        if (!this.player.isMining) {
+            let dx = 0, dy = 0;
+            let dir = this.player.dir;
+
+            if (this.input.isDown("w")) { dy = -MOVE_SPEED; dir = "up"; }
+            if (this.input.isDown("s")) { dy =  MOVE_SPEED; dir = "down"; }
+            if (this.input.isDown("a")) { dx = -MOVE_SPEED; dir = "left"; }
+            if (this.input.isDown("d")) { dx =  MOVE_SPEED; dir = "right"; }
+
+            if (dx !== 0 || dy !== 0) {
+                const newX    = this.player.getMoveX(dx);
+                const newY    = this.player.getMoveY(dy);
+                const phaseOk = this.phase !== "NOCHE";
+
+                if (
+                    (!phaseOk || !this.blockManager.colisiona(newX, newY, PLAYER_SIZE)) &&
+                    !this.market.colisiona(newX, newY, PLAYER_SIZE)
+                ) {
+                    this.player.moveTo(newX, newY);
+                    this.player.setDir(dir);
+                }
             }
         }
+
+        this.camera.follow(this.player.x, this.player.y, PLAYER_SIZE);
+        this._ordenY();
     }
 
-    // Actualizar la cámara en cada frame para que el scroll sea suave
-    actualizarCamara();
-
-    requestAnimationFrame(update);
-}
-
-update();
-
-function actualizarCamara() {
-    // Centro de la cámara sobre el jugador
-    let camX = playerX + 32 - CAM_W / 2;
-    let camY = playerY + 32 - CAM_H / 2;
-
-    // Limitar para no salirse del mundo
-    camX = Math.max(0, Math.min(WORLD_W - CAM_W, camX));
-    camY = Math.max(0, Math.min(WORLD_H - CAM_H, camY));
-
-    // Mover el mundo en dirección contraria
-    mundo.style.transform = `translate(${-camX}px, ${-camY}px)`;
-}
-
-// --- GOLPEAR BLOQUE ---
-function golpearBloque(block) {
-    if (isMining) return; 
-    if (fase !== "DIA") return;
-    if (!hasPickaxe) { alert("Necesitas un pico. ¡Compra uno en el mercado!"); return; }
-    if (block.hp <= 0) return;
-
-    // Comprobar proximidad
-    const pcx = playerX + 32;
-    const pcy = playerY + 32;
-    const bcx = block.x + BLOCK_SIZE / 2;
-    const bcy = block.y + BLOCK_SIZE / 2;
-    const dist = Math.sqrt((pcx - bcx) ** 2 + (pcy - bcy) ** 2);
-
-    if (dist > MINE_RANGE) return;
-
-    // Mostrar barra de vida al primer golpe
-    if (!block.hit) {
-        block.hit = true;
-        block.hpBar.style.display = "block";
+    _ordenY() {
+        const items = [];
+        items.push({ el: this.player.el,    z: this.player.bottom });
+        items.push({ el: this.player.sombra, z: this.player.bottom - 1 });
+        items.push({ el: this.market.el,    z: this.market.bottom });
+        this.blockManager.blocks.forEach(b  => items.push({ el: b.el, z: b.bottom }));
+        this.enemyManager.enemies.forEach(e => items.push({ el: e.el, z: e.bottom }));
+        items.sort((a, b) => a.z - b.z);
+        items.forEach((item, i) => item.el.style.zIndex = i + 2);
     }
 
-    // Animación del pico
-    isMining = true;
-    let frame = 1;
+    _onBlockClick(block) {
+        if (this.player.isMining)  return;
+        if (this.phase !== "DIA")  return;
+        if (!this.hasPickaxe) { alert("Necesitas un pico. ¡Compra uno en el mercado!"); return; }
+        if (block.hp <= 0)         return;
 
-    const offsets = {
-        down: { x: 2, y: 23 },
-        up: { x:0, y: -20 },
-        left: { x: -15, y: 5 },
-        right: { x: 15, y: 0 }
-    };
+        const golpeOk = this.blockManager.golpear(
+            block,
+            this.player.centerX, this.player.centerY,
+            1,
+            (daño) => {
+                this.gold += daño;
+                this.hud.actualizarOro(this.gold);
+                if (this.gold >= 10 && !this.hasSword) {
+                    alert("¡Se hace de noche! Compra un arma rápido antes de que aparezcan los monstruos.");
+                }
+            }
+        );
 
-    const rotations = {
-        down: 90,
-        up: 270,
-        left: 180,
-        right: 0
-    };
-
-    const off = offsets[playerDir] || { x: 0, y: 0 };
-    pickaxe.style.left = (playerX + off.x) + "px";
-    pickaxe.style.top = (playerY + off.y) + "px";
-    pickaxe.style.display = "block";
-    pickaxe.style.backgroundImage = "url('sprites/pickaxe/pickaxe1.png')";
-    pickaxe.style.transform = "rotate(" + rotations[playerDir] + "deg)";
-
-    const anim = setInterval(() => {
-        frame++;
-        if (frame > 4) {
-            clearInterval(anim);
-            pickaxe.style.display = "none";
-            isMining = false;
-        } else {
-            pickaxe.style.backgroundImage = "url('sprites/pickaxe/pickaxe" + frame + ".png')";
+        if (golpeOk) {
+            this.player.animarMinería(this.player.dir);
         }
-    }, 100);
-
-    // Dañar bloque usando el poder del pico actual
-    block.hp -= dañoPico;
-    const pct = (block.hp / block.maxHp) * 100;
-    block.hpFill.style.width = pct + "%";
-
-    if (block.hp <= 1) {
-        block.hpFill.style.background = "#f33";
-    } else if (block.hp <= 2) {
-        block.hpFill.style.background = "#fc3";
     }
 
-    if (block.hp <= 0) {
-        block.element.remove();
-        blocks = blocks.filter(b => b !== block);
-        oro += dañoPico;
-        txtOro.innerText = oro;
+    cambiarFase(nuevaFase) {
+        this.phase = nuevaFase;
+        this.hud.actualizarFase(nuevaFase);
 
-        if (oro >= 10 && !tieneEspada) {
-            alert("¡Se hace de noche! Compra un arma rápido antes de que aparezcan los monstruos.");
+        if (nuevaFase === "NOCHE") {
+            this.blockManager.eliminarTodos();
+            this.enemyManager.aparecer(
+                this.player.x + 150,
+                this.player.y,
+                () => this.weaponDamage,
+                () => {
+                    alert("¡Monstruo derrotado! Vuelve el amanecer.");
+                    this.cambiarFase("DIA");
+                    this.blockManager.generar(this.player.x, this.player.y);
+                }
+            );
         }
     }
 }
-
-
-function cambiarFase(nuevaFase) {
-    fase = nuevaFase;
-    txtFase.innerText = fase;
-
-    if (fase === "NOCHE") {
-        // Eliminamos los bloques del mapa y limpiamos el array para que no estorben
-        blocks.forEach(b => b.element.remove());
-        blocks = [];
-        aparecerEnemigo();
-    }
-}
-
-function aparecerEnemigo() {
-    const enemigo = document.createElement("div");
-    enemigo.classList.add("sprite", "enemigo");
-
-    // Spawnear al enemigo un poco alejado del jugador (ej. 150px a la derecha)
-    enemigo.style.left = (playerX + 150) + "px";
-    enemigo.style.top = playerY + "px";
-    enemigo.style.position = "absolute"; // Asegúrate de que tu CSS use absolute
-
-    let vidaEnemigo = 5;
-    enemigo.onclick = function() {
-        vidaEnemigo -= dañoArma;
-        if (vidaEnemigo <= 0) {
-            enemigo.remove();
-            alert("¡Monstruo derrotado! Vuelve el amanecer.");
-            // Al volver el día, regeneramos bloques para que el bucle continúe
-            cambiarFase("DIA");
-            generarBloques(); 
-        }
-    };
-
-    mundo.appendChild(enemigo);
-}
-// --- MERCADO (menú sprite) ---
-const mercadoSprite = document.getElementById("mercado");
-const menuSprite = document.getElementById("menu-sprite");
-
-mercadoSprite.addEventListener("click", () => {
-    menuSprite.style.left = "140px";
-    menuSprite.style.top = "10px";
-    menuSprite.style.display = "block";
-});
-
-menuSprite.addEventListener("click", (e) => {
-    const y = e.offsetY;
-    if (y >= 12 && y <= 30) {
-        dañoArma++;
-        alert("⚔️ ¡Daño de espada aumentado a " + dañoArma + "!");
-        menuSprite.style.display = "none";
-    } else if (y >= 34 && y <= 52) {
-        if (oro < 5) { alert("Necesitas 5 de oro."); return; }
-        oro -= 5;
-        txtOro.innerText = oro;
-        maxPlayerHp++;
-        playerHp = Math.min(playerHp + 1, maxPlayerHp);
-        actualizarCorazones();
-        menuSprite.style.display = "none";
-    } else if (y >= 56 && y <= 74) {
-        if (hasPickaxe) { alert("¡Ya tienes un pico!"); return; }
-        hasPickaxe = true;
-        alert("⛏️ ¡Pico recogido! Ahora puedes picar bloques.");
-        menuSprite.style.display = "none";
-    } else if (y >= 78 && y <= 96) {
-        if (tieneEspada) { alert("¡Ya tienes espada!"); return; }
-        if (oro < 10) { alert("Necesitas 10 de oro."); return; }
-        oro -= 10;
-        txtOro.innerText = oro;
-        dañoArma = 3;
-        tieneEspada = true;
-        alert("⚔️ ¡Espada comprada! Los ruidos se intensifican...");
-        menuSprite.style.display = "none";
-        cambiarFase("NOCHE");
-    } else if (y >= 100 && y <= 110) {
-        menuSprite.style.display = "none";
-    }
-});
-
-document.addEventListener("click", (e) => {
-    if (menuSprite.style.display === "block" &&
-        e.target !== menuSprite &&
-        e.target !== mercadoSprite) {
-        menuSprite.style.display = "none";
-    }
-});
+-e 
+// Arrancar el juego cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => new Game());
