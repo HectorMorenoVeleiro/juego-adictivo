@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <title>Minero Extremo: Día y Noche</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -12,11 +15,18 @@
       </div>
       <div id="corazones"></div>
       <div id="tienda">
-        <button id="btn-dormir">DORMIR (Iniciar Noche)</button>
+        <div id="btn-dormir" class="btn-dormir" title="Dormir (Iniciar Noche)"></div>
       </div>
     </div>
 
-    <div id="pantalla-juego">
+    <div id="menu-inicio" class="pantalla-muerte" style="display: flex">
+      <div class="menu-contenido">
+        <h1 class="menu-titulo">MINERO EXTREMO</h1>
+        <p class="menu-mejor">Mejor noche: <span id="mejor-noche">—</span></p>
+        <button id="btn-jugar" class="menu-btn">JUGAR</button>
+      </div>
+    </div>
+    <div id="pantalla-juego" style="display: none">
       <div id="mundo">
         <div id="mercado" class="sprite mercado-sprite" title="Mercado"></div>
         <div
@@ -26,6 +36,32 @@
         ></div>
         <div id="jugador" class="sprite"></div>
         <!-- Los bloques y enemigos se generan con JS -->
+      </div>
+      <div id="mensaje" class="mensaje" style="display: none">
+        <span id="mensaje-texto"></span>
+        <span class="mensaje-enter">[ENTER]</span>
+      </div>
+      <div id="pantalla-muerte" class="pantalla-muerte" style="display: none">
+        <div class="muerte-contenido">
+          <h1>HAS MUERTO</h1>
+          <p class="muerte-noche">Noche <span id="muerte-noche">1</span></p>
+          <p class="muerte-reiniciar">Pulsa ENTER para reiniciar</p>
+        </div>
+      </div>
+      <div id="pantalla-pausa" class="pantalla-muerte" style="display: none">
+        <div class="menu-contenido">
+          <h1 style="font-size:24px;margin:0 0 12px 0;color:#fff">PAUSA</h1>
+          <button class="pausa-btn" id="btn-reanudar">REANUDAR</button>
+          <button class="pausa-btn" id="btn-reiniciar">REINICIAR</button>
+        </div>
+      </div>
+      <div id="herramientas">
+        <div id="slot-pico" class="slot-herramienta slot-activo">
+          <span class="slot-tecla">1</span>
+        </div>
+        <div id="slot-espada" class="slot-herramienta">
+          <span class="slot-tecla">2</span>
+        </div>
       </div>
     </div>
 
