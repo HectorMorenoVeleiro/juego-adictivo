@@ -212,46 +212,52 @@ class Player {
     this.el.style.backgroundImage = `url('sprites/char/char_${dir}.png')`;
     this._posicionarEspada();
 
-    const pdx = this.x + this.size / 2 - (blockX + BLOCK_SIZE / 2);
-    const pdy = this.y + PLAYER_VISUAL_H / 2 - (blockY + BLOCK_SIZE / 2);
+    const restX = this.x + 24;
+    const restY = this.y + 4;
+    const mineX = blockX + BLOCK_SIZE / 2 - 20;
+    const mineY = blockY - 36;
 
-    let pickX, pickY, mineAngle;
-    if (Math.abs(pdx) > Math.abs(pdy)) {
-      if (pdx > 0) {
-        pickX = blockX - 40;
-        pickY = blockY + 4;
-      } else {
-        pickX = blockX + BLOCK_SIZE;
-        pickY = blockY + 4;
-      }
-      mineAngle = PICKAXE_ANGLES.right;
-    } else {
-      if (pdy > 0) {
-        pickX = blockX + 4;
-        pickY = blockY - 40;
-      } else {
-        pickX = blockX + 4;
-        pickY = blockY + BLOCK_SIZE;
-      }
-      mineAngle = PICKAXE_ANGLES.down;
-    }
+    this.pickaxe.style.animation = "none";
 
     this.pickaxe.style.transition = "none";
     this.pickaxe.style.display = "block";
-    this.pickaxe.style.left = pickX + "px";
-    this.pickaxe.style.top = pickY + "px";
-    this.pickaxe.style.transform = `rotate(${mineAngle}deg)`;
+    this.pickaxe.style.left = restX + "px";
+    this.pickaxe.style.top = restY + "px";
+    this.pickaxe.style.transform = "rotate(0deg)";
 
     void this.pickaxe.offsetHeight;
 
-    this.pickaxe.style.transition = "transform 0.12s ease-in-out";
-    this.pickaxe.style.transform = "rotate(0deg)";
+    this.pickaxe.style.transition = "left 0.15s ease-out, top 0.15s ease-out";
+    this.pickaxe.style.left = mineX + "px";
+    this.pickaxe.style.top = mineY + "px";
 
-    setTimeout(() => {
-      this.isMining = false;
-      this._posicionarPico();
-      if (onDone) onDone();
-    }, 120);
+    let strikes = 0;
+    const swing = () => {
+      if (strikes >= 2) {
+        this.pickaxe.style.transition =
+          "left 0.12s ease-in, top 0.12s ease-in, transform 0.12s ease-in";
+        this.pickaxe.style.left = restX + "px";
+        this.pickaxe.style.top = restY + "px";
+        this.pickaxe.style.transform = "rotate(0deg)";
+        setTimeout(() => {
+          this.isMining = false;
+          this.pickaxe.style.animation = "";
+          this._posicionarPico();
+          if (onDone) onDone();
+        }, 120);
+        return;
+      }
+      this.pickaxe.style.transition = "transform 0.1s ease-out";
+      this.pickaxe.style.transform = "rotate(150deg)";
+      setTimeout(() => {
+        this.pickaxe.style.transition = "transform 0.08s ease-in";
+        this.pickaxe.style.transform = "rotate(60deg)";
+        strikes++;
+        setTimeout(swing, 90);
+      }, 100);
+    };
+
+    setTimeout(swing, 160);
   }
 
   setPickaxeLevel(level) {
@@ -506,26 +512,105 @@ class BlockManager {
 // ============================================================
 class Enemy {
   constructor(x, y, mundo) {
+    this.x = x;
+    this.y = y;
+    this.size = 64;
+    this.hp = 5;
+    this.maxHp = 5;
+    this.speed = 0.5;
+    this.hit = false;
+    this.bodyFrame = 1;
+
     this.el = document.createElement("div");
-    this.el.classList.add("sprite", "enemigo");
+    this.el.classList.add("enemigo-container");
     this.el.style.left = x + "px";
     this.el.style.top = y + "px";
     this.el.style.position = "absolute";
+    this.el.style.width = "64px";
+    this.el.style.height = "64px";
+
+    this.bodyEl = document.createElement("div");
+    this.bodyEl.classList.add("enemigo-body");
+    this._actualizarBody();
+
+    this.eyeEl = document.createElement("div");
+    this.eyeEl.classList.add("enemigo-eye");
+    this._actualizarOjo();
+
+    this.hpBar = document.createElement("div");
+    this.hpBar.className = "enemigo-hit";
+    this.hpBar.style.display = "none";
+
+    this.el.appendChild(this.bodyEl);
+    this.el.appendChild(this.eyeEl);
+    this.el.appendChild(this.hpBar);
     mundo.appendChild(this.el);
-    this.hp = 5;
+
+    this._animInterval = setInterval(() => {
+      this.bodyFrame = (this.bodyFrame % 9) + 1;
+      this._actualizarBody();
+    }, 200);
+    this._eyeInterval = setInterval(() => {
+      this._actualizarOjo();
+    }, 400);
+  }
+
+  _actualizarBody() {
+    this.bodyEl.style.backgroundImage = `url('sprites/enemy/enemy_body/enemy_body${this.bodyFrame}.png')`;
+  }
+
+  _actualizarOjo() {
+    const eyeFrame = Math.floor(Math.random() * 5) + 1;
+    this.eyeEl.style.backgroundImage = `url('sprites/enemy/enemy_eye/enemy_eye${eyeFrame}.png')`;
   }
 
   get bottom() {
-    return this.el.offsetTop + this.el.offsetHeight;
+    return this.y + this.size;
+  }
+  get centerX() {
+    return this.x + this.size / 2;
+  }
+  get centerY() {
+    return this.y + this.size / 2;
+  }
+
+  moverHacia(px, py) {
+    const dx = px - this.centerX;
+    const dy = py - this.centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 1) {
+      this.x += (dx / dist) * this.speed;
+      this.y += (dy / dist) * this.speed;
+    }
+    this.el.style.left = this.x + "px";
+    this.el.style.top = this.y + "px";
+  }
+
+  mostrarDaño() {
+    this.hpBar.style.display = "block";
+    this.hpBar.style.width = "32px";
+    const pct = (this.hp / this.maxHp) * 100;
+    this.hpBar.style.background =
+      pct > 50 ? "#3f3" : pct > 25 ? "#fc3" : "#f33";
   }
 
   recibirDaño(cantidad) {
     this.hp -= cantidad;
+    this.hit = true;
+    this.mostrarDaño();
     if (this.hp <= 0) {
+      clearInterval(this._animInterval);
+      clearInterval(this._eyeInterval);
       this.el.remove();
       return true;
     }
     return false;
+  }
+
+  eliminar() {
+    clearInterval(this._animInterval);
+    clearInterval(this._eyeInterval);
+    this.el.remove();
   }
 }
 
@@ -534,19 +619,52 @@ class EnemyManager {
     this.enemies = [];
     this.mundo = mundo;
     this.onEnemyClick = null;
+    this.getDaño = null;
+    this.onDerrotado = null;
   }
 
-  aparecer(x, y, getDaño, onDerrotado) {
-    const enemy = new Enemy(x, y, this.mundo);
-    enemy.el.onclick = () => {
-      if (this.onEnemyClick && !this.onEnemyClick(enemy)) return;
-      if (enemy.recibirDaño(getDaño())) {
-        this.enemies = this.enemies.filter((e) => e !== enemy);
-        if (onDerrotado) onDerrotado();
+  aparecer(cantidad, playerX, playerY, getDaño, onDerrotado) {
+    this.getDaño = getDaño;
+    this.onDerrotado = onDerrotado;
+    for (let i = 0; i < cantidad; i++) {
+      let x, y, intentos = 0;
+      do {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 150 + Math.random() * 100;
+        x = playerX + Math.cos(angle) * dist;
+        y = playerY + Math.sin(angle) * dist;
+        x = Math.max(10, Math.min(1200 - 74, x));
+        y = Math.max(10, Math.min(900 - 74, y));
+        intentos++;
+      } while (intentos < 20 &&
+        this.enemies.some(e => Math.abs(e.x - x) < 70 && Math.abs(e.y - y) < 70));
+      const enemy = new Enemy(x, y, this.mundo);
+      enemy.el.onclick = () => {
+        if (this.onEnemyClick && !this.onEnemyClick(enemy)) return;
+        if (enemy.recibirDaño(getDaño())) {
+          this.enemies = this.enemies.filter((e) => e !== enemy);
+          if (onDerrotado) onDerrotado();
+        }
+      };
+      this.enemies.push(enemy);
+    }
+  }
+
+  actualizar(playerX, playerY, playerSize, onPlayerHit) {
+    this.enemies.forEach((enemy) => {
+      enemy.moverHacia(playerX + playerSize / 2, playerY + playerSize / 2);
+      const dx = enemy.centerX - (playerX + playerSize / 2);
+      const dy = enemy.centerY - (playerY + playerSize / 2);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 40 && onPlayerHit) {
+        onPlayerHit(enemy);
       }
-    };
-    this.enemies.push(enemy);
-    return enemy;
+    });
+  }
+
+  eliminarTodos() {
+    this.enemies.forEach((e) => e.eliminar());
+    this.enemies = [];
   }
 }
 
@@ -624,8 +742,10 @@ class Game {
     this.hud = new HUD();
 
     this.phase = "DIA";
+    this.night = 0;
     this.gold = 0;
     this.activeTool = "pickaxe";
+    this.invulnTimer = 0;
     this.mensajeEl = document.getElementById("mensaje");
     this.mensajeTexto = document.getElementById("mensaje-texto");
     this.messageActive = false;
@@ -646,12 +766,27 @@ class Game {
 
     document.getElementById("interfaz").style.display = "none";
 
+    const mejor = localStorage.getItem("mejorNoche");
+    if (mejor) {
+      document.getElementById("mejor-noche").innerText = mejor;
+    }
+
     document.getElementById("btn-jugar").addEventListener("click", () => {
       document.getElementById("menu-inicio").style.display = "none";
       document.getElementById("pantalla-juego").style.display = "";
       document.getElementById("interfaz").style.display = "";
       this.started = true;
       this._init();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const muerteVisible =
+          document.getElementById("pantalla-muerte").style.display === "flex";
+        if (muerteVisible) {
+          location.reload();
+        }
+      }
     });
 
     this.market = new Market({
@@ -740,6 +875,21 @@ class Game {
       if (this.phase === "DIA") this.cambiarFase("NOCHE");
     });
 
+    document.getElementById("btn-reanudar").addEventListener("click", () => {
+      document.getElementById("pantalla-pausa").style.display = "none";
+    });
+
+    document.getElementById("btn-reiniciar").addEventListener("click", () => {
+      location.reload();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.started) {
+        const pausa = document.getElementById("pantalla-pausa");
+        pausa.style.display = pausa.style.display === "flex" ? "none" : "flex";
+      }
+    });
+
     this._actualizarSlots();
   }
 
@@ -792,6 +942,30 @@ class Game {
           this.player.setDir(dir);
         }
       }
+    }
+
+    if (this.invulnTimer > 0) {
+      this.invulnTimer--;
+      this.player.el.style.opacity = Math.floor(this.invulnTimer / 4) % 2 ? "0.3" : "1";
+    } else {
+      this.player.el.style.opacity = "1";
+    }
+
+    if (this.phase === "NOCHE") {
+      this.enemyManager.actualizar(
+        this.player.x,
+        this.player.y,
+        PLAYER_SIZE,
+        (enemy) => {
+          if (this.invulnTimer > 0) return;
+          this.player.hp--;
+          this.hud.actualizarCorazones(this.player.hp, this.player.maxHp);
+          this.invulnTimer = 30;
+          if (this.player.hp <= 0) {
+            this._morir();
+          }
+        },
+      );
     }
 
     this.camera.follow(this.player.x, this.player.y, PLAYER_SIZE);
@@ -856,6 +1030,16 @@ class Game {
     this.messageActive = false;
   }
 
+  _morir() {
+    this.started = false;
+    document.getElementById("pantalla-muerte").style.display = "flex";
+    document.getElementById("muerte-noche").innerText = this.night;
+    const mejor = localStorage.getItem("mejorNoche");
+    if (!mejor || this.night > parseInt(mejor)) {
+      localStorage.setItem("mejorNoche", this.night);
+    }
+  }
+
   _actualizarSlots() {
     const slotPico = document.getElementById("slot-pico");
     const slotEspada = document.getElementById("slot-espada");
@@ -875,16 +1059,29 @@ class Game {
     this.hud.actualizarFase(nuevaFase);
 
     if (nuevaFase === "NOCHE") {
+      this.night++;
       this.blockManager.eliminarTodos();
+      this.enemyManager.eliminarTodos();
+      const cantidad = Math.min(1 + Math.floor(this.night / 2), 8);
+      const totalEnemies = cantidad;
+      let derrotados = 0;
       this.enemyManager.aparecer(
-        this.player.x + 150,
+        cantidad,
+        this.player.x,
         this.player.y,
         () => SWORD_DMG[Math.max(0, this.player.swordLevel)],
         () => {
-          this.mostrarMensaje("¡Monstruo derrotado! Vuelve el amanecer.");
-          this.cambiarFase("DIA");
-          this.blockManager.generar(this.player.x, this.player.y);
+          derrotados++;
+          if (derrotados >= totalEnemies && this.phase === "NOCHE") {
+            this.enemyManager.eliminarTodos();
+            this.mostrarMensaje("¡Noche superada! Vuelve el amanecer.");
+            this.cambiarFase("DIA");
+            this.blockManager.generar(this.player.x, this.player.y);
+          }
         },
+      );
+      this.mostrarMensaje(
+        `¡Noche ${this.night}! Derrota a ${totalEnemies} enemigo${totalEnemies > 1 ? "s" : ""}.`,
       );
     }
   }

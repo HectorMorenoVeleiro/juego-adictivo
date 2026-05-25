@@ -147,12 +147,45 @@ body {
     transition: width 0.1s;
 }
 
-.enemigo-eye {
-    animation: float 1.5s ease-in-out infinite;
+.enemigo-container {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    cursor: pointer;
 }
 
 .enemigo-body {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    background-size: contain;
+    background-repeat: no-repeat;
     image-rendering: pixelated;
+    z-index: 1;
+}
+
+.enemigo-eye {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    z-index: 2;
+    animation: float 1.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.enemigo-hit {
+    position: absolute;
+    width: 32px;
+    height: 4px;
+    background: #f33;
+    bottom: -6px;
+    left: 16px;
+    border-radius: 2px;
+    display: none;
+    z-index: 3;
 }
 
 .enemy-hp {
