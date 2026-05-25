@@ -215,7 +215,7 @@ class Player {
     const restX = this.x + 24;
     const restY = this.y + 4;
     const mineX = blockX + BLOCK_SIZE / 2 - 20;
-    const mineY = blockY - 36;
+    const mineY = blockY - 24;
 
     this.pickaxe.style.animation = "none";
 
@@ -278,7 +278,7 @@ class Player {
     const tier = PICKAXE_TIERS[this.pickaxeLevel];
     this.pickaxe.style.backgroundImage = `url('sprites/pickaxe/${tier}_pickaxe.png')`;
     this.pickaxe.style.left = this.x + 24 + "px";
-    this.pickaxe.style.top = this.y + 4 + "px";
+    this.pickaxe.style.top = this.y + 10 + "px";
     this.pickaxe.style.transform = "rotate(0deg)";
     this.pickaxe.style.transition = "none";
   }
@@ -511,57 +511,81 @@ class BlockManager {
 //  ENEMY
 // ============================================================
 class Enemy {
-  constructor(x, y, mundo) {
+  constructor(x, y, mundo, type) {
     this.x = x;
     this.y = y;
     this.size = 64;
-    this.hp = 5;
-    this.maxHp = 5;
-    this.speed = 0.5;
+    this.type = type || "body";
     this.hit = false;
+
+    if (this.type === "body") {
+      this.hp = 8;
+      this.maxHp = 8;
+      this.speed = 0.4 + Math.random() * 0.3;
+    } else {
+      this.hp = 4;
+      this.maxHp = 4;
+      this.speed = 0.6 + Math.random() * 0.4;
+    }
+
     this.bodyFrame = 1;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.wobbleSpeed = 0.02 + Math.random() * 0.03;
+    this.wobbleAmp = 0.3 + Math.random() * 0.4;
+
+    this.stunTimer = 0;
+    this.knockbackVx = 0;
+    this.knockbackVy = 0;
+    this.hitFlashTimer = 0;
+
+    this.wanderTargetX = x;
+    this.wanderTargetY = y;
+    this.wanderTimer = 0;
+    this.aggroRange = 200 + Math.random() * 150;
 
     this.el = document.createElement("div");
     this.el.classList.add("enemigo-container");
-    this.el.style.left = x + "px";
-    this.el.style.top = y + "px";
     this.el.style.position = "absolute";
     this.el.style.width = "64px";
     this.el.style.height = "64px";
+    this.el.style.transform = `translate(${x}px, ${y}px)`;
 
-    this.bodyEl = document.createElement("div");
-    this.bodyEl.classList.add("enemigo-body");
-    this._actualizarBody();
-
-    this.eyeEl = document.createElement("div");
-    this.eyeEl.classList.add("enemigo-eye");
-    this._actualizarOjo();
+    this.spriteEl = document.createElement("div");
+    this.spriteEl.className =
+      this.type === "body" ? "enemigo-body" : "enemigo-eye";
+    this._actualizarSprite();
+    this.el.appendChild(this.spriteEl);
 
     this.hpBar = document.createElement("div");
     this.hpBar.className = "enemigo-hit";
     this.hpBar.style.display = "none";
 
-    this.el.appendChild(this.bodyEl);
-    this.el.appendChild(this.eyeEl);
+    this.hpFill = document.createElement("div");
+    this.hpFill.className = "enemigo-hit-fill";
+    this.hpBar.appendChild(this.hpFill);
+
     this.el.appendChild(this.hpBar);
     mundo.appendChild(this.el);
 
-    this._animInterval = setInterval(() => {
-      this.bodyFrame = (this.bodyFrame % 9) + 1;
-      this._actualizarBody();
-    }, 200);
-    this._eyeInterval = setInterval(() => {
-      this._actualizarOjo();
-    }, 400);
+    if (this.type === "body") {
+      this._animInterval = setInterval(() => {
+        this.bodyFrame = (this.bodyFrame % 9) + 1;
+        this._actualizarSprite();
+      }, 200);
+    } else {
+      this._eyeInterval = setInterval(() => {
+        this._actualizarSprite();
+      }, 300);
+    }
   }
 
-  _actualizarBody() {
-    this.bodyEl.style.backgroundImage = `url('sprites/enemy/enemy_body/enemy_body${this.bodyFrame}.png')`;
-  }
-
-  _actualizarOjo() {
-    const eyeFrame = Math.floor(Math.random() * 5) + 1;
-    this.eyeEl.style.backgroundImage = `url('sprites/enemy/enemy_eye/enemy_eye${eyeFrame}.png')`;
+  _actualizarSprite() {
+    if (this.type === "body") {
+      this.spriteEl.style.backgroundImage = `url('sprites/enemy/enemy_body/enemy_body${this.bodyFrame}.png')`;
+    } else {
+      const frame = Math.floor(Math.random() * 5) + 1;
+      this.spriteEl.style.backgroundImage = `url('sprites/enemy/enemy_eye/enemy_eye${frame}.png')`;
+    }
   }
 
   get bottom() {
@@ -574,33 +598,103 @@ class Enemy {
     return this.y + this.size / 2;
   }
 
+  _nuevoWander() {
+    this.wanderTargetX = Math.random() * (WORLD_W - this.size);
+    this.wanderTargetY = Math.random() * (WORLD_H - this.size);
+    this.wanderTimer = 80 + Math.floor(Math.random() * 160);
+  }
+
   moverHacia(px, py) {
-    const dx = px - this.centerX;
-    const dy = py - this.centerY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > 1) {
-      this.x += (dx / dist) * this.speed;
-      this.y += (dy / dist) * this.speed;
+    this.wobble += this.wobbleSpeed;
+
+    const knockback =
+      Math.abs(this.knockbackVx) > 0.1 ||
+      Math.abs(this.knockbackVy) > 0.1;
+
+    if (knockback) {
+      this.x += this.knockbackVx;
+      this.y += this.knockbackVy;
+      this.knockbackVx *= 0.88;
+      this.knockbackVy *= 0.88;
     }
-    this.el.style.left = this.x + "px";
-    this.el.style.top = this.y + "px";
+
+    if (this.stunTimer > 0) {
+      this.stunTimer--;
+    } else if (!knockback) {
+      this.wanderTimer--;
+
+      const distToPlayer = Math.sqrt(
+        (px - this.centerX) ** 2 + (py - this.centerY) ** 2,
+      );
+
+      if (distToPlayer < this.aggroRange) {
+        this.wanderTargetX = px;
+        this.wanderTargetY = py;
+        this.wanderTimer = 10;
+      } else if (this.wanderTimer <= 0) {
+        this._nuevoWander();
+      }
+
+      const tdx = this.wanderTargetX - this.centerX;
+      const tdy = this.wanderTargetY - this.centerY;
+      const tDist = Math.sqrt(tdx * tdx + tdy * tdy);
+
+      if (tDist > 4) {
+        const noiseX = Math.cos(this.wobble) * this.wobbleAmp;
+        const noiseY = Math.sin(this.wobble * 0.7) * this.wobbleAmp;
+        const dx = tdx / tDist + noiseX;
+        const dy = tdy / tDist + noiseY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        this.x += (dx / d) * this.speed;
+        this.y += (dy / d) * this.speed;
+      } else if (distToPlayer >= this.aggroRange) {
+        this._nuevoWander();
+      }
+    }
+
+    this.x = Math.max(0, Math.min(WORLD_W - this.size, this.x));
+    this.y = Math.max(0, Math.min(WORLD_H - this.size, this.y));
+
+    const floatY = Math.sin(this.wobble * 2) * 2.5;
+    this.el.style.transform = `translate(${this.x}px, ${this.y + floatY}px)`;
+
+    if (this.hitFlashTimer > 0) {
+      this.hitFlashTimer--;
+      this.spriteEl.style.filter =
+        this.hitFlashTimer > 4 ? "brightness(2.5)" : "brightness(1.3)";
+      if (this.hitFlashTimer === 0) {
+        this.spriteEl.style.filter = "";
+      }
+    }
   }
 
   mostrarDaño() {
     this.hpBar.style.display = "block";
-    this.hpBar.style.width = "32px";
-    const pct = (this.hp / this.maxHp) * 100;
-    this.hpBar.style.background =
-      pct > 50 ? "#3f3" : pct > 25 ? "#fc3" : "#f33";
+    const pct = Math.max(0, (this.hp / this.maxHp) * 100);
+    this.hpFill.style.width = pct + "%";
+    if (pct > 50) this.hpFill.style.background = "#3f3";
+    else if (pct > 25) this.hpFill.style.background = "#fc3";
+    else this.hpFill.style.background = "#f33";
   }
 
-  recibirDaño(cantidad) {
-    this.hp -= cantidad;
+  golpear(daño, playerCenterX, playerCenterY) {
+    this.hp -= daño;
     this.hit = true;
     this.mostrarDaño();
+
+    this.hitFlashTimer = 8;
+    this.spriteEl.style.filter = "brightness(2.5)";
+
+    const dx = this.centerX - playerCenterX;
+    const dy = this.centerY - playerCenterY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    this.knockbackVx = (dx / dist) * 7;
+    this.knockbackVy = (dy / dist) * 7;
+    this.stunTimer = 12;
+
     if (this.hp <= 0) {
-      clearInterval(this._animInterval);
-      clearInterval(this._eyeInterval);
+      if (this._animInterval) clearInterval(this._animInterval);
+      if (this._eyeInterval) clearInterval(this._eyeInterval);
       this.el.remove();
       return true;
     }
@@ -608,8 +702,8 @@ class Enemy {
   }
 
   eliminar() {
-    clearInterval(this._animInterval);
-    clearInterval(this._eyeInterval);
+    if (this._animInterval) clearInterval(this._animInterval);
+    if (this._eyeInterval) clearInterval(this._eyeInterval);
     this.el.remove();
   }
 }
@@ -621,6 +715,8 @@ class EnemyManager {
     this.onEnemyClick = null;
     this.getDaño = null;
     this.onDerrotado = null;
+    this.playerX = 0;
+    this.playerY = 0;
   }
 
   aparecer(cantidad, playerX, playerY, getDaño, onDerrotado) {
@@ -629,19 +725,21 @@ class EnemyManager {
     for (let i = 0; i < cantidad; i++) {
       let x, y, intentos = 0;
       do {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 150 + Math.random() * 100;
-        x = playerX + Math.cos(angle) * dist;
-        y = playerY + Math.sin(angle) * dist;
-        x = Math.max(10, Math.min(1200 - 74, x));
-        y = Math.max(10, Math.min(900 - 74, y));
+        x = 20 + Math.random() * (WORLD_W - 84);
+        y = 20 + Math.random() * (WORLD_H - 84);
         intentos++;
-      } while (intentos < 20 &&
-        this.enemies.some(e => Math.abs(e.x - x) < 70 && Math.abs(e.y - y) < 70));
-      const enemy = new Enemy(x, y, this.mundo);
+      } while (
+        intentos < 30 &&
+        (Math.abs(x - playerX) < 100 && Math.abs(y - playerY) < 100 ||
+        this.enemies.some(
+          (e) => Math.abs(e.x - x) < 70 && Math.abs(e.y - y) < 70,
+        ))
+      );
+      const type = Math.random() < 0.55 ? "body" : "eye";
+      const enemy = new Enemy(x, y, this.mundo, type);
       enemy.el.onclick = () => {
         if (this.onEnemyClick && !this.onEnemyClick(enemy)) return;
-        if (enemy.recibirDaño(getDaño())) {
+        if (enemy.golpear(getDaño(), this.playerX, this.playerY)) {
           this.enemies = this.enemies.filter((e) => e !== enemy);
           if (onDerrotado) onDerrotado();
         }
@@ -651,12 +749,14 @@ class EnemyManager {
   }
 
   actualizar(playerX, playerY, playerSize, onPlayerHit) {
+    this.playerX = playerX + playerSize / 2;
+    this.playerY = playerY + playerSize / 2;
     this.enemies.forEach((enemy) => {
-      enemy.moverHacia(playerX + playerSize / 2, playerY + playerSize / 2);
-      const dx = enemy.centerX - (playerX + playerSize / 2);
-      const dy = enemy.centerY - (playerY + playerSize / 2);
+      enemy.moverHacia(this.playerX, this.playerY);
+      const dx = enemy.centerX - this.playerX;
+      const dy = enemy.centerY - this.playerY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 40 && onPlayerHit) {
+      if (dist < 35 && onPlayerHit) {
         onPlayerHit(enemy);
       }
     });
@@ -727,6 +827,73 @@ class Market {
 }
 
 // ============================================================
+//  MINIMAPA
+// ============================================================
+class Minimapa {
+  constructor() {
+    this.canvas = document.getElementById("minimapa-canvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.w = 100;
+    this.h = 75;
+    this.scale = WORLD_W / this.w;
+    this.playerDot = 3;
+    this.marketDot = 3;
+  }
+
+  dibujar(game) {
+    const ctx = this.ctx;
+    const s = this.scale;
+    const w = this.w, h = this.h;
+
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0, 0, w, h);
+
+    const camX = Math.max(0, Math.min(WORLD_W - CAM_W, game.player.x + PLAYER_SIZE / 2 - CAM_W / 2));
+    const camY = Math.max(0, Math.min(WORLD_H - CAM_H, game.player.y + PLAYER_SIZE / 2 - CAM_H / 2));
+
+    // Camera viewport rectangle
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(camX / s, camY / s, CAM_W / s, CAM_H / s);
+
+    // Blocks
+    ctx.fillStyle = "rgba(200,180,80,0.5)";
+    game.blockManager.blocks.forEach((b) => {
+      ctx.fillRect(b.x / s, b.y / s, BLOCK_SIZE / s, BLOCK_SIZE / s);
+    });
+
+    // Market
+    const mx = (MERCADO_X + 64) / s;
+    const my = (MERCADO_Y + 64) / s;
+    ctx.fillStyle = "#ff0";
+    ctx.fillRect(mx - 1, my - 1, 3, 3);
+
+    // Market indicator on minimap
+    if (game.indicadorVisible) {
+      ctx.strokeStyle = "#ffcc00";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(mx, my, Math.floor(Date.now() / 300) % 2 === 0 ? 5 : 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Enemies at night
+    if (game.phase === "NOCHE") {
+      game.enemyManager.enemies.forEach((enemy) => {
+        ctx.fillStyle = "#f44";
+        ctx.fillRect((enemy.x + 32) / s - 1, (enemy.y + 32) / s - 1, 2, 2);
+      });
+    }
+
+    // Player
+    const px = (game.player.x + 16) / s;
+    const py = (game.player.y + 16) / s;
+    ctx.fillStyle = "#4f4";
+    ctx.fillRect(px - 1, py - 1, 3, 3);
+  }
+}
+
+// ============================================================
 //  GAME
 // ============================================================
 class Game {
@@ -748,6 +915,9 @@ class Game {
     this.invulnTimer = 0;
     this.mensajeEl = document.getElementById("mensaje");
     this.mensajeTexto = document.getElementById("mensaje-texto");
+    this.indicadorMercado = document.getElementById("indicador-mercado");
+    this.indicadorVisible = false;
+    this.paused = false;
     this.messageActive = false;
     document.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && this.messageActive) {
@@ -789,6 +959,7 @@ class Game {
       }
     });
 
+    this.minimapa = new Minimapa();
     this.market = new Market({
       mejorarArma: () => {},
       comprarCorazon: () => {
@@ -820,6 +991,8 @@ class Game {
         this.hud.actualizarOro(this.gold);
         this.player.setPickaxeLevel(nextLevel);
         this._actualizarSlots();
+        this.indicadorMercado.style.display = "none";
+        this.indicadorVisible = false;
         this.mostrarMensaje(`¡Pico mejorado a ${PICKAXE_NAMES[nextLevel]}!`);
         this.market.menuEl.style.display = "none";
       },
@@ -845,7 +1018,7 @@ class Game {
         this.market.menuEl.style.display = "none";
         if (nextLevel === 0) {
           this.activeTool = "sword";
-          this.cambiarFase("NOCHE");
+          this._actualizarSlots();
         }
       },
       cerrar: () => {
@@ -875,8 +1048,14 @@ class Game {
       if (this.phase === "DIA") this.cambiarFase("NOCHE");
     });
 
+    document.getElementById("mercado").addEventListener("click", () => {
+      this.indicadorMercado.style.display = "none";
+      this.indicadorVisible = false;
+    });
+
     document.getElementById("btn-reanudar").addEventListener("click", () => {
       document.getElementById("pantalla-pausa").style.display = "none";
+      this.paused = false;
     });
 
     document.getElementById("btn-reiniciar").addEventListener("click", () => {
@@ -886,7 +1065,9 @@ class Game {
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.started) {
         const pausa = document.getElementById("pantalla-pausa");
-        pausa.style.display = pausa.style.display === "flex" ? "none" : "flex";
+        const showing = pausa.style.display === "flex";
+        pausa.style.display = showing ? "none" : "flex";
+        this.paused = !showing;
       }
     });
 
@@ -906,7 +1087,7 @@ class Game {
   }
 
   _actualizar() {
-    if (!this.started) return;
+    if (!this.started || this.paused) return;
     if (!this.player.isMining && !this.player.isAttacking) {
       let dx = 0,
         dy = 0;
@@ -946,9 +1127,13 @@ class Game {
 
     if (this.invulnTimer > 0) {
       this.invulnTimer--;
-      this.player.el.style.opacity = Math.floor(this.invulnTimer / 4) % 2 ? "0.3" : "1";
+      const blink = Math.floor(this.invulnTimer / 3) % 2;
+      this.player.el.style.opacity = blink ? "0.2" : "1";
+      this.player.el.style.filter =
+        this.invulnTimer > 24 ? "brightness(2) saturate(0)" : "";
     } else {
       this.player.el.style.opacity = "1";
+      this.player.el.style.filter = "";
     }
 
     if (this.phase === "NOCHE") {
@@ -961,6 +1146,7 @@ class Game {
           this.player.hp--;
           this.hud.actualizarCorazones(this.player.hp, this.player.maxHp);
           this.invulnTimer = 30;
+          this.player.el.style.filter = "brightness(3) saturate(0)";
           if (this.player.hp <= 0) {
             this._morir();
           }
@@ -968,20 +1154,35 @@ class Game {
       );
     }
 
+    if (this.indicadorVisible) {
+      const cCamX = Math.max(0, Math.min(WORLD_W - CAM_W, this.player.x + PLAYER_SIZE / 2 - CAM_W / 2));
+      const cCamY = Math.max(0, Math.min(WORLD_H - CAM_H, this.player.y + PLAYER_SIZE / 2 - CAM_H / 2));
+      const mx = MERCADO_X - cCamX;
+      const my = MERCADO_Y - cCamY;
+      if (mx > -24 && mx < CAM_W + 24 && my > -24 && my < CAM_H + 24) {
+        this.indicadorMercado.style.display = "";
+        this.indicadorMercado.style.left = (Math.max(0, mx) + 46) + "px";
+        this.indicadorMercado.style.top = (Math.max(0, my) + 46) + "px";
+      } else {
+        this.indicadorMercado.style.display = "none";
+      }
+    }
+
     this.camera.follow(this.player.x, this.player.y, PLAYER_SIZE);
     this._ordenY();
+    this.minimapa.dibujar(this);
   }
 
   _ordenY() {
     const items = [];
-    items.push({ el: this.player.el, z: this.player.bottom });
-    items.push({ el: this.player.sombra, z: this.player.bottom - 1 });
-    items.push({ el: this.market.el, z: this.market.bottom });
+    items.push({ el: this.player.el, z: Math.floor(this.player.bottom) });
+    items.push({ el: this.player.sombra, z: Math.floor(this.player.bottom) - 1 });
+    items.push({ el: this.market.el, z: Math.floor(this.market.bottom) });
     this.blockManager.blocks.forEach((b) =>
-      items.push({ el: b.el, z: b.bottom }),
+      items.push({ el: b.el, z: Math.floor(b.bottom) }),
     );
     this.enemyManager.enemies.forEach((e) =>
-      items.push({ el: e.el, z: e.bottom }),
+      items.push({ el: e.el, z: Math.floor(e.bottom) }),
     );
     items.sort((a, b) => a.z - b.z);
     items.forEach((item, i) => (item.el.style.zIndex = i + 2));
@@ -993,6 +1194,8 @@ class Game {
     if (this.phase !== "DIA") return;
     if (this.player.pickaxeLevel < 0) {
       this.mostrarMensaje("Necesitas un pico. ¡Compra uno en el mercado!");
+      this.indicadorMercado.style.display = "flex";
+      this.indicadorVisible = true;
       return;
     }
     if (block.hp <= 0) return;
@@ -1008,7 +1211,7 @@ class Game {
         this.hud.actualizarOro(this.gold);
         if (this.gold >= 10 && this.player.swordLevel < 0) {
           this.mostrarMensaje(
-            "¡Se hace de noche! Compra un arma rápido antes de que aparezcan los monstruos.",
+            "¡Ya tienes suficiente oro! Compra una espada antes de dormir.",
           );
         }
       },
@@ -1062,7 +1265,7 @@ class Game {
       this.night++;
       this.blockManager.eliminarTodos();
       this.enemyManager.eliminarTodos();
-      const cantidad = Math.min(1 + Math.floor(this.night / 2), 8);
+      const cantidad = 10 + this.night * 5;
       const totalEnemies = cantidad;
       let derrotados = 0;
       this.enemyManager.aparecer(
