@@ -8,7 +8,7 @@ const BLOCK_HITBOX = 5;
 const WORLD_W = 1200;
 const WORLD_H = 900;
 const CAM_W = 500;
-const CAM_H = 200;
+const CAM_H = 250;
 
 const MERCADO_X = 10;
 const MERCADO_Y = 10;
