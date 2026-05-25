@@ -6,6 +6,13 @@ body {
 }
 
 #pantalla-juego {
+    position: relative;
+    width: 459px;
+    height: 230px;
+    background: #443322;
+    margin: 20px auto;
+    border: 4px solid #666;
+    overflow: hidden;
     transform: scale(3);
     transform-origin: top center;
 }
@@ -42,17 +49,6 @@ body {
     clip-path: inset(0 50% 0 0);
 }
 
-#pantalla-juego {
-    position: relative;
-    width: 500px;
-    height: 200px;
-    background: #443322;
-    margin: 20px auto;
-    border: 4px solid #666;
-    overflow: hidden;
-    transform-origin: top center;
-}
-
 #mundo {
     position: absolute;
     width: 1200px;   /* tamaño total del mundo */
@@ -70,25 +66,29 @@ body {
     background-size: 32px; 
     
     /* 4. Evita que el pixel art del fondo se vea borroso al escalarse con la cámara */
-    image-rendering: pixelated; 
+    image-rendering: pixelated;
 }
 
-/* Clase base para todos tus sprites */
 .sprite {
     position: absolute;
     width: 64px;
     height: 64px;
     background-size: contain;
     background-repeat: no-repeat;
-    image-rendering: pixelated; /* Por si es Pixel Art */
+    image-rendering: pixelated;
     backface-visibility: hidden;
 }
 
-/* Rutas a tus imágenes reales */
 #jugador {
     background-image: url('sprites/char/char_down.png');
 }
-/* Clase para las sombras genéricas */
+
+.block-highlight {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: -2px;
+    filter: brightness(1.3);
+}
+
 .sombra {
     position: absolute;
     background-image: url('sprites/shadow/shadow.png');
@@ -431,18 +431,11 @@ body {
     border-radius: 50%;
     background: rgba(255, 204, 0, 0.3);
     border: 3px solid #ffcc00;
-    box-shadow: 0 0 20px #ff8800, 0 0 40px #ff4400;
     z-index: 15000;
     pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: indicador-pulso 0.6s ease-in-out infinite alternate;
-}
-
-@keyframes indicador-pulso {
-    0% { scale: 0.85; opacity: 0.6; }
-    100% { scale: 1.15; opacity: 1; }
 }
 
 .slot-tecla {

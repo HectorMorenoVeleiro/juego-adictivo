@@ -1,14 +1,14 @@
 // ============================================================
 //  CONSTANTS
 // ============================================================
-const MOVE_SPEED = 2;
+const MOVE_SPEED = 3;
 const MINE_RANGE = 80;
 const BLOCK_SIZE = 32;
 const BLOCK_HITBOX = 5;
 const WORLD_W = 1200;
 const WORLD_H = 900;
-const CAM_W = 500;
-const CAM_H = 250;
+const CAM_W = 459;
+const CAM_H = 230;
 
 const MERCADO_X = 10;
 const MERCADO_Y = 10;
@@ -917,6 +917,8 @@ class Game {
     this.mensajeTexto = document.getElementById("mensaje-texto");
     this.indicadorMercado = document.getElementById("indicador-mercado");
     this.indicadorVisible = false;
+    this._indCamX = -1;
+    this._indCamY = -1;
     this.paused = false;
     this.messageActive = false;
     document.addEventListener("keydown", (e) => {
@@ -1157,19 +1159,24 @@ class Game {
     if (this.indicadorVisible) {
       const cCamX = Math.max(0, Math.min(WORLD_W - CAM_W, this.player.x + PLAYER_SIZE / 2 - CAM_W / 2));
       const cCamY = Math.max(0, Math.min(WORLD_H - CAM_H, this.player.y + PLAYER_SIZE / 2 - CAM_H / 2));
-      const mx = MERCADO_X - cCamX;
-      const my = MERCADO_Y - cCamY;
-      if (mx > -24 && mx < CAM_W + 24 && my > -24 && my < CAM_H + 24) {
-        this.indicadorMercado.style.display = "";
-        this.indicadorMercado.style.left = (Math.max(0, mx) + 46) + "px";
-        this.indicadorMercado.style.top = (Math.max(0, my) + 46) + "px";
-      } else {
-        this.indicadorMercado.style.display = "none";
+      if (cCamX !== this._indCamX || cCamY !== this._indCamY) {
+        this._indCamX = cCamX;
+        this._indCamY = cCamY;
+        const mx = MERCADO_X - cCamX;
+        const my = MERCADO_Y - cCamY;
+        if (mx > -24 && mx < CAM_W + 24 && my > -24 && my < CAM_H + 24) {
+          this.indicadorMercado.style.display = "";
+          this.indicadorMercado.style.left = (Math.max(0, mx) + 46) + "px";
+          this.indicadorMercado.style.top = (Math.max(0, my) + 46) + "px";
+        } else {
+          this.indicadorMercado.style.display = "none";
+        }
       }
     }
 
     this.camera.follow(this.player.x, this.player.y, PLAYER_SIZE);
     this._ordenY();
+    this._actualizarResaltadoBloques();
     this.minimapa.dibujar(this);
   }
 
@@ -1186,6 +1193,18 @@ class Game {
     );
     items.sort((a, b) => a.z - b.z);
     items.forEach((item, i) => (item.el.style.zIndex = i + 2));
+  }
+
+  _actualizarResaltadoBloques() {
+    if (this.player.pickaxeLevel < 0 || this.activeTool !== "pickaxe" || this.phase !== "DIA") return;
+    const px = this.player.centerX;
+    const py = this.player.centerY;
+    const rangeSq = MINE_RANGE * MINE_RANGE;
+    this.blockManager.blocks.forEach((b) => {
+      const dx = b.centerX - px;
+      const dy = b.centerY - py;
+      b.el.classList.toggle("block-highlight", dx * dx + dy * dy <= rangeSq);
+    });
   }
 
   _onBlockClick(block) {
