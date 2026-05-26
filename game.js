@@ -988,8 +988,11 @@ class Game {
     this._indCamY = -1;
     this.paused = false;
     this.messageActive = false;
+    this.totalEnemigosNoche = 0;
+    this.derrotadosNoche = 0;
+    this.questText = document.getElementById("quest-text");
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && this.messageActive) {
+      if (e.key === " " && this.messageActive) {
         this._ocultarMensaje();
         return;
       }
@@ -1003,6 +1006,8 @@ class Game {
           this.player.pickaxeLevel >= 0
         ) {
           this._picarBloque();
+        } else if (this.phase === "DIA" && this.activeTool === "pickaxe" && this._hayBloqueEnRango()) {
+          this.mostrarMensaje("Necesitas un pico. Cómpralo en el mercado.");
         } else if (this.phase === "NOCHE" && this.activeTool === "sword") {
           this._atacarConEspada();
         }
@@ -1079,6 +1084,7 @@ class Game {
         this.indicadorVisible = false;
         this.mostrarMensaje(`¡Pico mejorado a ${PICKAXE_NAMES[nextLevel]}!`);
         this._actualizarPreciosMenu();
+        this._actualizarMision();
         this.market.menuEl.style.display = "none";
       },
       comprarEspada: () => {
@@ -1101,6 +1107,7 @@ class Game {
         this.mostrarMensaje(`¡Espada mejorada a ${SWORD_NAMES[nextLevel]}!`);
         this._actualizarSlots();
         this._actualizarPreciosMenu();
+        this._actualizarMision();
         this.market.menuEl.style.display = "none";
         if (nextLevel === 0) {
           this.activeTool = "sword";
@@ -1171,6 +1178,7 @@ class Game {
     this.blockManager.generar(this.player.x, this.player.y);
     this.hud.actualizarCorazones(this.player.hp, this.player.maxHp);
     this.hud.actualizarFase(this.phase);
+    this._actualizarMision();
     this._bucle();
   }
 
@@ -1381,6 +1389,7 @@ class Game {
     const golpeOk = this.blockManager.golpear(block, px, py, damage, (daño) => {
       this.gold += daño;
       this.hud.actualizarOro(this.gold);
+      this._actualizarMision();
       if (this.gold >= 10 && this.player.swordLevel < 0) {
         this.mostrarMensaje(
           "¡Ya tienes suficiente oro! Compra una espada antes de dormir.",
@@ -1391,6 +1400,36 @@ class Game {
     if (golpeOk) {
       this.player.animarMinería(this.player.dir, block.x, block.y);
     }
+  }
+
+  _hayBloqueEnRango() {
+    const px = this.player.centerX;
+    const py = this.player.centerY;
+    const rangeSq = MINE_RANGE * MINE_RANGE;
+    return this.blockManager.blocks.some((b) => {
+      if (b.hp <= 0) return false;
+      const dx = b.centerX - px;
+      const dy = b.centerY - py;
+      return dx * dx + dy * dy <= rangeSq;
+    });
+  }
+
+  _actualizarMision() {
+    let texto = "";
+    if (this.phase === "NOCHE") {
+      texto = `Elimina ${this.derrotadosNoche}/${this.totalEnemigosNoche}`;
+    } else {
+      if (this.player.pickaxeLevel < 0) {
+        texto = "Consigue un pico";
+      } else if (this.gold < 10) {
+        texto = "Consigue 10 de oro para una espada";
+      } else if (this.player.swordLevel < 0) {
+        texto = "Compra la espada";
+      } else {
+        texto = "Ve a dormir";
+      }
+    }
+    this.questText.innerText = texto;
   }
 
   mostrarMensaje(texto) {
@@ -1463,16 +1502,18 @@ class Game {
       this.blockManager.eliminarTodos();
       this.enemyManager.eliminarTodos();
       const cantidad = 10 + this.night * 5;
-      const totalEnemies = cantidad;
-      let derrotados = 0;
+      this.totalEnemigosNoche = cantidad;
+      this.derrotadosNoche = 0;
+      this._actualizarMision();
       this.enemyManager.aparecer(
         cantidad,
         this.player.x,
         this.player.y,
         () => SWORD_DMG[Math.max(0, this.player.swordLevel)],
         () => {
-          derrotados++;
-          if (derrotados >= totalEnemies && this.phase === "NOCHE") {
+          this.derrotadosNoche++;
+          this._actualizarMision();
+          if (this.derrotadosNoche >= this.totalEnemigosNoche && this.phase === "NOCHE") {
             this.enemyManager.eliminarTodos();
             this.mostrarMensaje("¡Noche superada! Vuelve el amanecer.");
             this.cambiarFase("DIA");
@@ -1481,8 +1522,10 @@ class Game {
         },
       );
       this.mostrarMensaje(
-        `¡Noche ${this.night}! Derrota a ${totalEnemies} enemigo${totalEnemies > 1 ? "s" : ""}.`,
+        `¡Noche ${this.night}! Derrota a ${this.totalEnemigosNoche} enemigo${this.totalEnemigosNoche > 1 ? "s" : ""}.`,
       );
+    } else if (nuevaFase === "DIA") {
+      this._actualizarMision();
     }
   }
 }

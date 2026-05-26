@@ -319,20 +319,6 @@ body {
     background: #585858;
 }
 
-.menu-mercado .menu-controles {
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid #555;
-    font-size: 8px;
-    color: #999;
-    line-height: 1.6;
-    text-align: center;
-}
-
-.menu-mercado .menu-controles span {
-    display: block;
-}
-
 .interact-msg {
     position: absolute;
     bottom: 16px;
@@ -498,24 +484,25 @@ body {
 .menu-contenido {
     text-align: center;
     color: #fff;
-    padding: 32px;
+    padding: 10px 8px;
 }
 .menu-titulo {
-    font-size: 64px;
-    margin: 0 0 18px 0;
+    font-size: 110px;
+    margin: 0 0 4px 0;
     text-shadow: 0 0 30px #ffaa00, 0 0 60px #ff6600, 0 0 90px #ff4400;
     color: #ffcc00;
     letter-spacing: 6px;
+    line-height: 1;
 }
 .menu-mejor {
-    font-size: 22px;
+    font-size: 40px;
     color: #aaa;
-    margin: 0 0 28px 0;
+    margin: 0 0 8px 0;
 }
 .menu-btn {
     font-family: "Tiny5", monospace;
-    font-size: 36px;
-    padding: 14px 48px;
+    font-size: 56px;
+    padding: 8px 72px;
     background: #554422;
     color: #ffcc00;
     border: 4px solid #ffcc00;
@@ -526,6 +513,16 @@ body {
 .menu-btn:hover {
     background: #776633;
     transform: scale(1.08);
+}
+.menu-controles {
+    margin-top: 8px;
+    font-size: 16px;
+    color: #888;
+    line-height: 1.6;
+    text-align: center;
+}
+.menu-controles span {
+    display: block;
 }
 
 .pausa-contenido {
@@ -583,5 +580,24 @@ body {
     display: block;
     width: 100px;
     height: 75px;
+}
+#quest-bar {
+    position: absolute;
+    right: 4px;
+    top: 83px;
+    border: 1px solid #555;
+    border-top: none;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 3px 8px;
+    font-family: "Tiny5", monospace;
+    font-size: 9px;
+    color: #ffcc00;
+    image-rendering: pixelated;
+    z-index: 99999;
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 100px;
+    box-sizing: border-box;
 }
 

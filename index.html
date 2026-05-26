@@ -24,6 +24,10 @@
         <h1 class="menu-titulo">MINERO EXTREMO</h1>
         <p class="menu-mejor">Mejor noche: <span id="mejor-noche">—</span></p>
         <button id="btn-jugar" class="menu-btn">JUGAR</button>
+        <div class="menu-controles">
+          <span>WASD — Moverse</span>
+          <span>ESPACIO — Interactuar</span>
+        </div>
       </div>
     </div>
     <div id="pantalla-juego" style="display: none">
@@ -44,17 +48,13 @@
             <span class="menu-btn-precio" id="precio-espada">-</span>
           </button>
           <button class="menu-btn menu-btn-cerrar" data-action="cerrar">Cerrar</button>
-          <div class="menu-controles">
-            <span>WASD — Moverse</span>
-            <span>ESPACIO — Interactuar</span>
-          </div>
         </div>
         <div id="jugador" class="sprite"></div>
         <!-- Los bloques y enemigos se generan con JS -->
       </div>
       <div id="mensaje" class="mensaje" style="display: none">
         <span id="mensaje-texto"></span>
-        <span class="mensaje-enter">[ENTER]</span>
+        <span class="mensaje-enter">[ESPACIO]</span>
       </div>
       <div id="interact-msg" class="interact-msg" style="display: none">[ESPACIO]</div>
       <div id="indicador-mercado" class="indicador-mercado" style="display: none"></div>
@@ -83,6 +83,7 @@
       <div id="minimapa">
         <canvas id="minimapa-canvas" width="100" height="75"></canvas>
       </div>
+      <div id="quest-bar"><span id="quest-text"></span></div>
     </div>
 
     <script src="game.js"></script>
