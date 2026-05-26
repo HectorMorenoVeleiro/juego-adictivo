@@ -37,6 +37,10 @@ const SWORD_DMG = [3, 4, 5];
 const SWORD_OFFSET_X = 20;
 const SWORD_OFFSET_Y = 12;
 
+const MERCADO_CENTER_X = MERCADO_X + 64;
+const MERCADO_CENTER_Y = MERCADO_Y + 64;
+const MERCADO_INTERACT_RANGE = 55;
+
 // ============================================================
 //  INPUT
 // ============================================================
@@ -452,7 +456,11 @@ class BlockManager {
             y + BLOCK_SIZE + 4 > p.y,
         ) ||
           (Math.abs(x + BLOCK_SIZE / 2 - (playerX + 32)) < 80 &&
-            Math.abs(y + BLOCK_SIZE / 2 - (playerY + 32)) < 80))
+            Math.abs(y + BLOCK_SIZE / 2 - (playerY + 32)) < 80) ||
+          (Math.abs(x + BLOCK_SIZE / 2 - MERCADO_CENTER_X) <
+            MERCADO_INTERACT_RANGE + 20 &&
+            Math.abs(y + BLOCK_SIZE / 2 - MERCADO_CENTER_Y) <
+              MERCADO_INTERACT_RANGE + 20))
       );
       posiciones.push({ x, y });
     }
@@ -820,9 +828,7 @@ class Market {
 
   _init() {
     this.el.addEventListener("click", () => {
-      this.menuEl.style.left = "140px";
-      this.menuEl.style.top = "10px";
-      this.menuEl.style.display = "block";
+      if (this.acciones.abrirMercado) this.acciones.abrirMercado();
     });
 
     this.btnCorazon.addEventListener("click", (e) => {
@@ -977,6 +983,7 @@ class Game {
     this.mensajeTexto = document.getElementById("mensaje-texto");
     this.indicadorMercado = document.getElementById("indicador-mercado");
     this.indicadorVisible = false;
+    this.interactMsg = document.getElementById("interact-msg");
     this._indCamX = -1;
     this._indCamY = -1;
     this.paused = false;
@@ -988,7 +995,9 @@ class Game {
       }
       if (e.key === " " && this.started && !this.paused) {
         e.preventDefault();
-        if (
+        if (this.phase === "DIA" && this._cercaDeMercado()) {
+          this.market.acciones.abrirMercado();
+        } else if (
           this.phase === "DIA" &&
           this.activeTool === "pickaxe" &&
           this.player.pickaxeLevel >= 0
@@ -1100,6 +1109,15 @@ class Game {
       },
       cerrar: () => {
         this.market.menuEl.style.display = "none";
+      },
+      abrirMercado: () => {
+        if (this.phase === "DIA" && this._cercaDeMercado()) {
+          this.market.menuEl.style.left = "140px";
+          this.market.menuEl.style.top = "10px";
+          this.market.menuEl.style.display = "block";
+          this.indicadorMercado.style.display = "none";
+          this.indicadorVisible = false;
+        }
       },
     });
 
@@ -1252,6 +1270,18 @@ class Game {
           this.indicadorMercado.style.display = "none";
         }
       }
+    }
+
+    if (
+      this.phase === "DIA" &&
+      this._cercaDeMercado() &&
+      !this.paused &&
+      !this.messageActive &&
+      this.market.menuEl.style.display !== "block"
+    ) {
+      this.interactMsg.style.display = "block";
+    } else {
+      this.interactMsg.style.display = "none";
     }
 
     this.camera.follow(this.player.x, this.player.y, PLAYER_SIZE);
@@ -1416,6 +1446,12 @@ class Game {
       nextSwdLevel < SWORD_NAMES.length ? SWORD_NAMES[nextSwdLevel] : null;
 
     this.market.actualizarPrecios(pickCost, pickName, swdCost, swdName);
+  }
+
+  _cercaDeMercado() {
+    const dx = this.player.centerX - MERCADO_CENTER_X;
+    const dy = this.player.centerY - MERCADO_CENTER_Y;
+    return Math.sqrt(dx * dx + dy * dy) <= MERCADO_INTERACT_RANGE + 32;
   }
 
   cambiarFase(nuevaFase) {
