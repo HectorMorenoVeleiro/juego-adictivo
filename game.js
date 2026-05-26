@@ -22,6 +22,7 @@ const MERCADO_OFFSET_H = 0;
 const PLAYER_START_X = 100;
 const PLAYER_START_Y = 316;
 const PLAYER_SIZE = 32;
+const PLAYER_HITBOX = 20;
 const PLAYER_VISUAL_H = 64;
 const PLAYER_HP = 5;
 
@@ -30,30 +31,11 @@ const PICKAXE_NAMES = ["Bronce", "Piedra", "Hierro", "Esmeralda", "Rubí"];
 const PICKAXE_COSTS = [0, 3, 5, 8, 12];
 const PICKAXE_DMG = [1, 1, 2, 2, 3];
 
-const PICKAXE_ANGLES = {
-  down: 135,
-  up: -45,
-  left: 45,
-  right: 45,
-};
-
 const SWORD_NAMES = ["Espada", "Espada+", "Espada++"];
 const SWORD_COSTS = [10, 15, 20];
 const SWORD_DMG = [3, 4, 5];
-
-const SWORD_THRUST = {
-  down: { x: 0, y: 12 },
-  up: { x: 0, y: -12 },
-  left: { x: -12, y: 0 },
-  right: { x: 12, y: 0 },
-};
-
-const SWORD_ANGLES = {
-  down: 180,
-  up: 0,
-  left: -90,
-  right: 90,
-};
+const SWORD_OFFSET_X = 20;
+const SWORD_OFFSET_Y = 12;
 
 // ============================================================
 //  INPUT
@@ -309,6 +291,8 @@ class Player {
     this.sword.style.left = this.x + 24 + "px";
     this.sword.style.top = this.y + 8 + "px";
     this.sword.style.transform = "rotate(0deg)";
+    this.sword.style.transformOrigin = "";
+    this.sword.style.animation = "";
     this.sword.style.transition = "none";
   }
 
@@ -319,42 +303,73 @@ class Player {
     }
     this.dir = dir;
     this.isAttacking = true;
-    this.setDir(dir);
+    this.el.style.backgroundImage = `url('sprites/char/char_${dir}.png')`;
 
-    const thrust = SWORD_THRUST[dir] || { x: 0, y: 0 };
-    const angle = SWORD_ANGLES[dir] || 0;
+    const RADIUS = 36;
+    const DURATION = 400;
+    const TRAIL_INTERVAL = 35;
 
-    const restX = this.x + 24;
-    const restY = this.y + 8;
-    const thrustX = this.x + 24 + thrust.x;
-    const thrustY = this.y + 8 + thrust.y;
+    const cx = this.x + this.size / 2 + SWORD_OFFSET_X;
+    const cy = this.y + this.size / 2 + SWORD_OFFSET_Y;
 
-    this.sword.style.transform = `rotate(${angle}deg)`;
-    this.sword.style.transition = "none";
-    this.sword.style.left = restX + "px";
-    this.sword.style.top = restY + "px";
     this.sword.style.display = "block";
+    this.sword.style.left = cx - 24 + "px";
+    this.sword.style.top = cy - 24 + "px";
+    this.sword.style.transformOrigin = "24px 24px";
+    this.sword.style.transition = "none";
+    this.sword.style.animation = "none";
 
-    void this.sword.offsetHeight;
+    const startTime = performance.now();
+    let lastTrailTime = startTime;
 
-    this.sword.style.transition = "left 0.08s ease-out, top 0.08s ease-out";
-    this.sword.style.left = thrustX + "px";
-    this.sword.style.top = thrustY + "px";
+    const swing = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / DURATION, 1);
+      const angleDeg = progress * 360;
 
-    setTimeout(() => {
-      this.sword.style.transition = "left 0.08s ease-in, top 0.08s ease-in";
-      this.sword.style.left = restX + "px";
-      this.sword.style.top = restY + "px";
-      setTimeout(() => {
+      this.sword.style.transform = `rotate(${angleDeg}deg) translate(${RADIUS}px, 0) rotate(90deg)`;
+
+      if (now - lastTrailTime >= TRAIL_INTERVAL) {
+        lastTrailTime = now;
+        this._spawnTrail(cx, cy, angleDeg, RADIUS);
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(swing);
+      } else {
         this.isAttacking = false;
+        this.sword.style.animation = "";
         if (this.activeTool === "sword") {
           this._posicionarEspada();
         } else {
           this.sword.style.display = "none";
         }
         if (onDone) onDone();
-      }, 80);
-    }, 80);
+      }
+    };
+
+    requestAnimationFrame(swing);
+  }
+
+  _spawnTrail(cx, cy, angleDeg, radius) {
+    const trail = document.createElement("div");
+    trail.className = "sword-trail";
+    trail.style.left = cx - 24 + "px";
+    trail.style.top = cy - 24 + "px";
+    trail.style.transformOrigin = "24px 24px";
+    trail.style.transform = `rotate(${angleDeg}deg) translate(${radius}px, 0) rotate(90deg)`;
+    trail.style.opacity = "0.4";
+
+    this.sword.parentElement.appendChild(trail);
+
+    requestAnimationFrame(() => {
+      trail.style.transition = "opacity 300ms ease-out";
+      trail.style.opacity = "0";
+    });
+
+    setTimeout(() => {
+      if (trail.parentElement) trail.remove();
+    }, 350);
   }
 
   curar(cantidad) {
@@ -460,9 +475,9 @@ class BlockManager {
     const hbX = x + margin;
     const hbY = y + margin;
     const hbSize = size - margin * 2;
-    const OFFSET_X = -10,
-      OFFSET_Y = -10,
-      HB_W = 20.5,
+    const OFFSET_X = -20,
+      OFFSET_Y = -20,
+      HB_W = 30,
       HB_H = 30;
 
     return this.blocks.some(
@@ -608,8 +623,7 @@ class Enemy {
     this.wobble += this.wobbleSpeed;
 
     const knockback =
-      Math.abs(this.knockbackVx) > 0.1 ||
-      Math.abs(this.knockbackVy) > 0.1;
+      Math.abs(this.knockbackVx) > 0.1 || Math.abs(this.knockbackVy) > 0.1;
 
     if (knockback) {
       this.x += this.knockbackVx;
@@ -723,17 +737,19 @@ class EnemyManager {
     this.getDaño = getDaño;
     this.onDerrotado = onDerrotado;
     for (let i = 0; i < cantidad; i++) {
-      let x, y, intentos = 0;
+      let x,
+        y,
+        intentos = 0;
       do {
         x = 20 + Math.random() * (WORLD_W - 84);
         y = 20 + Math.random() * (WORLD_H - 84);
         intentos++;
       } while (
         intentos < 30 &&
-        (Math.abs(x - playerX) < 100 && Math.abs(y - playerY) < 100 ||
-        this.enemies.some(
-          (e) => Math.abs(e.x - x) < 70 && Math.abs(e.y - y) < 70,
-        ))
+        ((Math.abs(x - playerX) < 100 && Math.abs(y - playerY) < 100) ||
+          this.enemies.some(
+            (e) => Math.abs(e.x - x) < 70 && Math.abs(e.y - y) < 70,
+          ))
       );
       const type = Math.random() < 0.55 ? "body" : "eye";
       const enemy = new Enemy(x, y, this.mundo, type);
@@ -774,8 +790,12 @@ class EnemyManager {
 class Market {
   constructor(acciones) {
     this.el = document.getElementById("mercado");
-    this.menuEl = document.getElementById("menu-sprite");
+    this.menuEl = document.getElementById("menu-mercado");
     this.acciones = acciones;
+    this.btnCorazon = this.menuEl.querySelector("[data-action=corazon]");
+    this.btnPico = this.menuEl.querySelector("[data-action=pico]");
+    this.btnEspada = this.menuEl.querySelector("[data-action=espada]");
+    this.btnCerrar = this.menuEl.querySelector("[data-action=cerrar]");
     this._init();
   }
 
@@ -805,24 +825,51 @@ class Market {
       this.menuEl.style.display = "block";
     });
 
-    this.menuEl.addEventListener("click", (e) => {
-      const y = e.offsetY;
-      if (y >= 12 && y <= 30) this.acciones.mejorarArma();
-      else if (y >= 34 && y <= 52) this.acciones.comprarCorazon();
-      else if (y >= 56 && y <= 74) this.acciones.comprarPico();
-      else if (y >= 78 && y <= 96) this.acciones.comprarEspada();
-      else if (y >= 100 && y <= 110) this.acciones.cerrar();
+    this.btnCorazon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.acciones.comprarCorazon();
+    });
+    this.btnPico.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.acciones.comprarPico();
+    });
+    this.btnEspada.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.acciones.comprarEspada();
+    });
+    this.btnCerrar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.acciones.cerrar();
     });
 
     document.addEventListener("click", (e) => {
       if (
         this.menuEl.style.display === "block" &&
-        e.target !== this.menuEl &&
+        !this.menuEl.contains(e.target) &&
         e.target !== this.el
       ) {
         this.menuEl.style.display = "none";
       }
     });
+  }
+
+  actualizarPrecios(pickaxeCost, pickaxeName, swordCost, swordName) {
+    if (pickaxeCost === null) {
+      this.btnPico.querySelector(".menu-btn-precio").innerText = "MAX";
+    } else {
+      this.btnPico.querySelector(".menu-btn-precio").innerText =
+        pickaxeCost + " oro";
+      this.btnPico.querySelector(".menu-btn-label").innerText =
+        "Pico " + pickaxeName;
+    }
+    if (swordCost === null) {
+      this.btnEspada.querySelector(".menu-btn-precio").innerText = "MAX";
+    } else {
+      this.btnEspada.querySelector(".menu-btn-precio").innerText =
+        swordCost + " oro";
+      this.btnEspada.querySelector(".menu-btn-label").innerText =
+        "Espada " + swordName;
+    }
   }
 }
 
@@ -843,13 +890,20 @@ class Minimapa {
   dibujar(game) {
     const ctx = this.ctx;
     const s = this.scale;
-    const w = this.w, h = this.h;
+    const w = this.w,
+      h = this.h;
 
     ctx.fillStyle = "#111";
     ctx.fillRect(0, 0, w, h);
 
-    const camX = Math.max(0, Math.min(WORLD_W - CAM_W, game.player.x + PLAYER_SIZE / 2 - CAM_W / 2));
-    const camY = Math.max(0, Math.min(WORLD_H - CAM_H, game.player.y + PLAYER_SIZE / 2 - CAM_H / 2));
+    const camX = Math.max(
+      0,
+      Math.min(WORLD_W - CAM_W, game.player.x + PLAYER_SIZE / 2 - CAM_W / 2),
+    );
+    const camY = Math.max(
+      0,
+      Math.min(WORLD_H - CAM_H, game.player.y + PLAYER_SIZE / 2 - CAM_H / 2),
+    );
 
     // Camera viewport rectangle
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
@@ -873,7 +927,13 @@ class Minimapa {
       ctx.strokeStyle = "#ffcc00";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(mx, my, Math.floor(Date.now() / 300) % 2 === 0 ? 5 : 6, 0, Math.PI * 2);
+      ctx.arc(
+        mx,
+        my,
+        Math.floor(Date.now() / 300) % 2 === 0 ? 5 : 6,
+        0,
+        Math.PI * 2,
+      );
       ctx.stroke();
     }
 
@@ -924,6 +984,19 @@ class Game {
     document.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && this.messageActive) {
         this._ocultarMensaje();
+        return;
+      }
+      if (e.key === " " && this.started && !this.paused) {
+        e.preventDefault();
+        if (
+          this.phase === "DIA" &&
+          this.activeTool === "pickaxe" &&
+          this.player.pickaxeLevel >= 0
+        ) {
+          this._picarBloque();
+        } else if (this.phase === "NOCHE" && this.activeTool === "sword") {
+          this._atacarConEspada();
+        }
         return;
       }
       if (e.key === "1" && this.player.pickaxeLevel >= 0) {
@@ -996,6 +1069,7 @@ class Game {
         this.indicadorMercado.style.display = "none";
         this.indicadorVisible = false;
         this.mostrarMensaje(`¡Pico mejorado a ${PICKAXE_NAMES[nextLevel]}!`);
+        this._actualizarPreciosMenu();
         this.market.menuEl.style.display = "none";
       },
       comprarEspada: () => {
@@ -1017,6 +1091,7 @@ class Game {
         this.player.setSwordLevel(nextLevel);
         this.mostrarMensaje(`¡Espada mejorada a ${SWORD_NAMES[nextLevel]}!`);
         this._actualizarSlots();
+        this._actualizarPreciosMenu();
         this.market.menuEl.style.display = "none";
         if (nextLevel === 0) {
           this.activeTool = "sword";
@@ -1028,12 +1103,10 @@ class Game {
       },
     });
 
-    this.blockManager.onBlockClick = (block) => this._onBlockClick(block);
-    this.enemyManager.onEnemyClick = () => {
-      if (this.activeTool !== "sword") return false;
-      this.player.animarEspada(this.player.dir);
-      return true;
-    };
+    this._actualizarPreciosMenu();
+
+    this.blockManager.onBlockClick = null;
+    this.enemyManager.onEnemyClick = () => false;
 
     document.getElementById("slot-pico").addEventListener("click", () => {
       if (this.player.pickaxeLevel < 0) return;
@@ -1118,8 +1191,9 @@ class Game {
         const phaseOk = this.phase !== "NOCHE";
 
         if (
-          (!phaseOk || !this.blockManager.colisiona(newX, newY, PLAYER_SIZE)) &&
-          !this.market.colisiona(newX, newY, PLAYER_SIZE)
+          (!phaseOk ||
+            !this.blockManager.colisiona(newX, newY, PLAYER_HITBOX)) &&
+          !this.market.colisiona(newX, newY, PLAYER_HITBOX)
         ) {
           this.player.moveTo(newX, newY);
           this.player.setDir(dir);
@@ -1157,8 +1231,14 @@ class Game {
     }
 
     if (this.indicadorVisible) {
-      const cCamX = Math.max(0, Math.min(WORLD_W - CAM_W, this.player.x + PLAYER_SIZE / 2 - CAM_W / 2));
-      const cCamY = Math.max(0, Math.min(WORLD_H - CAM_H, this.player.y + PLAYER_SIZE / 2 - CAM_H / 2));
+      const cCamX = Math.max(
+        0,
+        Math.min(WORLD_W - CAM_W, this.player.x + PLAYER_SIZE / 2 - CAM_W / 2),
+      );
+      const cCamY = Math.max(
+        0,
+        Math.min(WORLD_H - CAM_H, this.player.y + PLAYER_SIZE / 2 - CAM_H / 2),
+      );
       if (cCamX !== this._indCamX || cCamY !== this._indCamY) {
         this._indCamX = cCamX;
         this._indCamY = cCamY;
@@ -1166,8 +1246,8 @@ class Game {
         const my = MERCADO_Y - cCamY;
         if (mx > -24 && mx < CAM_W + 24 && my > -24 && my < CAM_H + 24) {
           this.indicadorMercado.style.display = "";
-          this.indicadorMercado.style.left = (Math.max(0, mx) + 46) + "px";
-          this.indicadorMercado.style.top = (Math.max(0, my) + 46) + "px";
+          this.indicadorMercado.style.left = Math.max(0, mx) + 46 + "px";
+          this.indicadorMercado.style.top = Math.max(0, my) + 46 + "px";
         } else {
           this.indicadorMercado.style.display = "none";
         }
@@ -1183,7 +1263,10 @@ class Game {
   _ordenY() {
     const items = [];
     items.push({ el: this.player.el, z: Math.floor(this.player.bottom) });
-    items.push({ el: this.player.sombra, z: Math.floor(this.player.bottom) - 1 });
+    items.push({
+      el: this.player.sombra,
+      z: Math.floor(this.player.bottom) - 1,
+    });
     items.push({ el: this.market.el, z: Math.floor(this.market.bottom) });
     this.blockManager.blocks.forEach((b) =>
       items.push({ el: b.el, z: Math.floor(b.bottom) }),
@@ -1196,7 +1279,12 @@ class Game {
   }
 
   _actualizarResaltadoBloques() {
-    if (this.player.pickaxeLevel < 0 || this.activeTool !== "pickaxe" || this.phase !== "DIA") return;
+    if (
+      this.player.pickaxeLevel < 0 ||
+      this.activeTool !== "pickaxe" ||
+      this.phase !== "DIA"
+    )
+      return;
     const px = this.player.centerX;
     const py = this.player.centerY;
     const rangeSq = MINE_RANGE * MINE_RANGE;
@@ -1207,34 +1295,68 @@ class Game {
     });
   }
 
-  _onBlockClick(block) {
-    if (this.player.isMining) return;
-    if (this.activeTool !== "pickaxe") return;
-    if (this.phase !== "DIA") return;
-    if (this.player.pickaxeLevel < 0) {
-      this.mostrarMensaje("Necesitas un pico. ¡Compra uno en el mercado!");
-      this.indicadorMercado.style.display = "flex";
-      this.indicadorVisible = true;
-      return;
-    }
-    if (block.hp <= 0) return;
+  _atacarConEspada() {
+    if (this.player.isAttacking) return;
+    if (this.activeTool !== "sword") return;
+    if (this.player.swordLevel < 0) return;
+    if (this.phase !== "NOCHE") return;
 
-    const damage = PICKAXE_DMG[this.player.pickaxeLevel];
-    const golpeOk = this.blockManager.golpear(
-      block,
-      this.player.centerX,
-      this.player.centerY,
-      damage,
-      (daño) => {
-        this.gold += daño;
-        this.hud.actualizarOro(this.gold);
-        if (this.gold >= 10 && this.player.swordLevel < 0) {
-          this.mostrarMensaje(
-            "¡Ya tienes suficiente oro! Compra una espada antes de dormir.",
-          );
+    const damage = SWORD_DMG[this.player.swordLevel];
+    const attackRadius = 48;
+
+    this.player.animarEspada(this.player.dir);
+
+    const px = this.player.centerX + SWORD_OFFSET_X;
+    const py = this.player.centerY + SWORD_OFFSET_Y;
+
+    const toRemove = [];
+    this.enemyManager.enemies.forEach((enemy) => {
+      const dx = enemy.centerX - px;
+      const dy = enemy.centerY - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < attackRadius + enemy.size / 2) {
+        if (enemy.golpear(damage, px, py)) {
+          toRemove.push(enemy);
         }
-      },
-    );
+      }
+    });
+
+    toRemove.forEach((enemy) => {
+      this.enemyManager.enemies = this.enemyManager.enemies.filter(
+        (e) => e !== enemy,
+      );
+      if (this.enemyManager.onDerrotado) this.enemyManager.onDerrotado();
+    });
+  }
+
+  _picarBloque() {
+    if (this.player.isMining) return;
+
+    const px = this.player.centerX;
+    const py = this.player.centerY;
+    const rangeSq = MINE_RANGE * MINE_RANGE;
+
+    const inRange = this.blockManager.blocks.filter((b) => {
+      if (b.hp <= 0) return false;
+      const dx = b.centerX - px;
+      const dy = b.centerY - py;
+      return dx * dx + dy * dy <= rangeSq;
+    });
+
+    if (inRange.length === 0) return;
+
+    const block = inRange[Math.floor(Math.random() * inRange.length)];
+    const damage = PICKAXE_DMG[this.player.pickaxeLevel];
+
+    const golpeOk = this.blockManager.golpear(block, px, py, damage, (daño) => {
+      this.gold += daño;
+      this.hud.actualizarOro(this.gold);
+      if (this.gold >= 10 && this.player.swordLevel < 0) {
+        this.mostrarMensaje(
+          "¡Ya tienes suficiente oro! Compra una espada antes de dormir.",
+        );
+      }
+    });
 
     if (golpeOk) {
       this.player.animarMinería(this.player.dir, block.x, block.y);
@@ -1274,6 +1396,26 @@ class Game {
     slotPico.classList.toggle("slot-activo", this.activeTool === "pickaxe");
     slotEspada.classList.toggle("slot-activo", this.activeTool === "sword");
     this.player.setActiveTool(this.activeTool);
+  }
+
+  _actualizarPreciosMenu() {
+    const nextPickLevel = this.player.pickaxeLevel + 1;
+    const pickCost =
+      nextPickLevel < PICKAXE_COSTS.length
+        ? PICKAXE_COSTS[nextPickLevel]
+        : null;
+    const pickName =
+      nextPickLevel < PICKAXE_NAMES.length
+        ? PICKAXE_NAMES[nextPickLevel]
+        : null;
+
+    const nextSwdLevel = this.player.swordLevel + 1;
+    const swdCost =
+      nextSwdLevel < SWORD_COSTS.length ? SWORD_COSTS[nextSwdLevel] : null;
+    const swdName =
+      nextSwdLevel < SWORD_NAMES.length ? SWORD_NAMES[nextSwdLevel] : null;
+
+    this.market.actualizarPrecios(pickCost, pickName, swdCost, swdName);
   }
 
   cambiarFase(nuevaFase) {

@@ -29,11 +29,22 @@
     <div id="pantalla-juego" style="display: none">
       <div id="mundo">
         <div id="mercado" class="sprite mercado-sprite" title="Mercado"></div>
-        <div
-          id="menu-sprite"
-          class="sprite menu-sprite"
-          style="display: none"
-        ></div>
+        <div id="menu-mercado" class="menu-mercado" style="display: none">
+          <div class="menu-titulo">MERCADO</div>
+          <button class="menu-btn" data-action="corazon">
+            <span class="menu-btn-label">Corazón +1</span>
+            <span class="menu-btn-precio">5 oro</span>
+          </button>
+          <button class="menu-btn" data-action="pico">
+            <span class="menu-btn-label">Mejorar Pico</span>
+            <span class="menu-btn-precio" id="precio-pico">-</span>
+          </button>
+          <button class="menu-btn" data-action="espada">
+            <span class="menu-btn-label">Mejorar Espada</span>
+            <span class="menu-btn-precio" id="precio-espada">-</span>
+          </button>
+          <button class="menu-btn menu-btn-cerrar" data-action="cerrar">Cerrar</button>
+        </div>
         <div id="jugador" class="sprite"></div>
         <!-- Los bloques y enemigos se generan con JS -->
       </div>
